@@ -1,0 +1,21 @@
+###
+# compilation options
+###
+IF (NOT WIN32)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+ENDIF (NOT WIN32)
+
+
+###
+# includes
+###
+include_directories(${PROJECT_SOURCE_DIR}/includes
+                    ${CPP_REDIS_INCLUDES})
+
+
+###
+# executable || cmake . -DBUILD_TSIM=true
+###
+add_executable(tsim_client tsim_client.cpp Call_Back_Timer.h Data_Controller.cpp Data_Controller.h Redis_Handler.cpp Redis_Handler.h Shared_Memory_Handler.cpp Shared_Memory_Handler.h Shared_Memory_Extension.cpp Shared_Memory_Extension.h TODO.txt)
+
+target_link_libraries(tsim_client cpp_redis)

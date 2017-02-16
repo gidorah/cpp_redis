@@ -1,0 +1,15 @@
+                              YAPILACAKLAR: (En yukarýdaki en öncelikli)
+
+[ ] - 'psubscribe' ile deðer, alan, map ya da list takibini güvenli olarak yapabilecek method yazýlmalý.
+[ ] - shared memory üzerinde zaten bulunan bir deðeri farklý bir tipte baþka bir deðer ile set etmek istendiðinde çakýyor. düzeltilmeli.
+[ ] - int, double gibi tek value olarak saklanmayan deðiþkenlerin güvenliði için shared memory üzerine kilit mekanizmasý kurulmalý.
+[ ] - redis üzerinde zaten bulunan bir deðeri farklý bir tipte baþka bir deðer ile set etmek istendiðinde ne oluyor test edilmeli.
+[ ] - senaryo bitince belli bir field altýndaki bütün deðerler silinebilmeli.
+[ ] - 
+[ ] - 
+[ ] - 
+[ ] - 
+[ ] - 
+[ ] - 
+[ ] - 
+[ ] - 

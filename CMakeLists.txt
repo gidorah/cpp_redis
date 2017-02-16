@@ -154,6 +154,10 @@ IF (BUILD_EXAMPLES)
   add_subdirectory(examples)
 ENDIF(BUILD_EXAMPLES)
 
+# IF (BUILD_TSIM)
+  add_subdirectory(tsim_client)
+# ENDIF(BUILD_TSIM)
+
 ###
 # tests
 ###
