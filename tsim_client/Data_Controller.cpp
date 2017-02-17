@@ -28,11 +28,11 @@ Data_Controller::Data_Controller() :
 
 	if (shm_handler->master)
 	{
-		//redis_handler->subscribe("test_map_1", subscribe_type::map, shm_handler);
-		//redis_handler->subscribe("test_map_2", subscribe_type::map, shm_handler);
-		//redis_handler->subscribe("test_time", subscribe_type::value, shm_handler);
-		//redis_handler->subscribe("test_time_1", subscribe_type::value, shm_handler);
-		//redis_handler->subscriber_commit();
+		redis_handler->subscribe("test_map_1", subscribe_type::map, shm_handler);
+		redis_handler->subscribe("test_map_2", subscribe_type::map, shm_handler);
+		redis_handler->subscribe("test_time", subscribe_type::value, shm_handler);
+		redis_handler->subscribe("test_time_1", subscribe_type::value, shm_handler);
+		redis_handler->subscriber_commit();
 	}
 	else
 	{
@@ -47,7 +47,7 @@ Data_Controller::Data_Controller() :
 		}
 
 		redis_handler->set_value("test_time", (double)milliseconds_since_epoch);
-		redis_handler->set_value("test_time_1", (double)milliseconds_since_epoch);
+		//redis_handler->set_value("test_time_1", (double)milliseconds_since_epoch);
 		//redis_handler->set_map("test_map_1", test_map);
 		//redis_handler->set_map("test_map_2", test_map);
 	}

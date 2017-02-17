@@ -155,7 +155,7 @@ IF (BUILD_EXAMPLES)
 ENDIF(BUILD_EXAMPLES)
 
 # IF (BUILD_TSIM)
-  add_subdirectory(tsim_client)
+  add_subdirectory(tsim_client) #cmake . -DBUILD_EXAMPLES=true -DLOGGING_ENABLED=1
 # ENDIF(BUILD_TSIM)
 
 ###
