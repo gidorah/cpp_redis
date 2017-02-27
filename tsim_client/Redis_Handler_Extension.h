@@ -32,6 +32,10 @@ class Redis_Handler_Extension :
 {
 public:
 
+	Redis_Handler_Extension(std::string const & server_ip, Shared_Memory_Extension *shm);
+
+	~Redis_Handler_Extension();
+
 	void set_value(std::string const & key, Redis_Extension::Level_2_data_packet const & packet)
 	{
 		std::string alias = "Level_2_data_packet.";
@@ -54,12 +58,11 @@ public:
 
 	}
 
-	void subscribe(std::string const & key)
-	{
+	//void subscribe(std::string const & key)
+	//{
 
-	}
+	//}
 
-	Redis_Handler_Extension();
-	~Redis_Handler_Extension();
+
 };
 

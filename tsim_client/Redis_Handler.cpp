@@ -2,28 +2,41 @@
 
 
 
-Redis_Handler::Redis_Handler()
+Redis_Handler::Redis_Handler(std::string const & server_ip, Shared_Memory_Extension *shm) :
+	shm_handler(shm)
 {
 	//cpp_redis::active_logger = std::unique_ptr<cpp_redis::logger>(new cpp_redis::logger);
 
-	client.connect("10.11.41.1", 6379, [](cpp_redis::redis_client&) {
+	client.connect(server_ip, 6379, [](cpp_redis::redis_client&) {
 		std::cout << "client disconnected (disconnection handler)" << std::endl;
 	});
 
-	sync_client.connect("10.11.41.1", 6379, [](cpp_redis::redis_client&) {
+	sync_client.connect(server_ip, 6379, [](cpp_redis::redis_client&) {
 		std::cout << "client disconnected (disconnection handler)" << std::endl;
 	});
 
-	subscriber.connect("10.11.41.1", 6379, [](cpp_redis::redis_subscriber&) {
+	future_client.connect(server_ip, 6379, [](cpp_redis::redis_client&) {
+		std::cout << "client disconnected (disconnection handler)" << std::endl;
+	});
+
+	subscriber.connect(server_ip, 6379, [](cpp_redis::redis_subscriber&) {
 		std::cout << "subscriber disconnected (disconnection handler)" << std::endl;
 	});
 
 	client.select(11);
 	client.commit();
 
+	sync_client.select(11);
+	future_client.select(11);
+
+
 	subscriber.subscribe("some_chan", [](const std::string& chan, const std::string& msg) {
 		std::cout << "MESSAGE " << chan << ": " << msg << std::endl;
 	}).commit();
+
+	//std::string _uuid = set_lock("my_lock");
+	//bool _lock = release_lock("my_lock", _uuid);
+	//std::cout << "uuid : " << _uuid << " state : " << _lock << std::endl;
 }
 
 
@@ -76,29 +89,20 @@ bool Redis_Handler::release_lock(std::string const & key, std::string const & uu
 	watchlist.push_back(_key);
 
 	sync_client.watch(watchlist);
-	sync_client.multi();
-	sync_client.del(watchlist);
-	cpp_redis::reply reply = sync_client.exec();
-	sync_client.unwatch();
 
-	if (reply.as_array().size() != 0)
+	if (sync_client.get(_key).as_string() == uuid)
 	{
-		auto it = reply.as_array().begin();
-		result = (*it).as_integer();
+		sync_client.multi();
+		sync_client.del(watchlist);
+		cpp_redis::reply reply = sync_client.exec();
+		sync_client.unwatch();
+
+		if (reply.as_array().size() != 0)
+		{
+			auto it = reply.as_array().begin();
+			result = (*it).as_integer();
+		}
 	}
 
 	return result;
 }
-
-void Redis_Handler::client_commit()
-{
-	client.commit();
-}
-
-void Redis_Handler::subscriber_commit()
-{
-	subscriber.commit();
-}
-
-
-

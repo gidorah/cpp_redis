@@ -95,6 +95,8 @@ public:
 	template <typename T1>
 	void set_value(std::string const & key, T1 const & arg_value)
 	{
+		std::cout << key << " : " << arg_value << std::endl;
+
 		T1 *_var = segment->find_or_construct<T1>(key.c_str())(arg_value);
 		*_var = arg_value;
 
@@ -190,6 +192,7 @@ public:
 			for (std::vector<T1>::const_iterator it = arg_vector.begin(); it != arg_vector.end(); it++)
 			{
 				shm_vector->push_back(*it);
+				std::cout << "it : " << *it << std::endl;
 			}
 
 			release_lock(key);

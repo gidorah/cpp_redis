@@ -3,8 +3,7 @@
 
 Data_Controller::Data_Controller() :
 	shm_handler(new Shared_Memory_Extension("bizim_memory")),
-	//redis_handler(new Redis_Handler("10.11.41.1", shm_handler)),
-	redis_handler(new Redis_Handler),
+	redis_handler(new Redis_Handler_Extension("10.11.41.1", shm_handler)),
 	heartbeat(TIMER_INTERVAL, std::bind(&Data_Controller::process_shm_changes, this)),
 	testbeat(1000, std::bind(&Data_Controller::test_print, this))
 {
@@ -16,7 +15,7 @@ Data_Controller::Data_Controller() :
 
 	//redis_handler->subscribe("val_d", value, shm_handler);
 	//redis_handler->subscribe("val_i", value, shm_handler);
-	redis_handler->subscribe("val_b", value, shm_handler);
+	redis_handler->subscribe("vector");
 	//redis_handler->subscriber_commit();
 	//////redis_handler->set_value("val_d", 444.1);
 	//////redis_handler->set_value("val_i", 555);
