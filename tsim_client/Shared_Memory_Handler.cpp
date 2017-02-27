@@ -74,9 +74,10 @@ void Shared_Memory_Handler::add_notification(std::string const & key, std::strin
 	Shared::void_allocator alloc_inst(segment_manager);
 	Shared::Sh_Notification_Struct _notification(key, type, alloc_inst);
 	Shared::string  key_object(key.c_str(), alloc_inst);
+	//Shared::string  key_object(std::to_string(getMilliCount()).c_str(), alloc_inst);
 	Shared::sh_notification_pair _pair(key_object, _notification);
 
-	incoming_notifications->insert(_pair);
+	outgoing_notifications->insert(_pair);
 }
 
 int Shared_Memory_Handler::get_notification_queue_size()

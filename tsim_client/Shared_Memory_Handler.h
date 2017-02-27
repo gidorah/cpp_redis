@@ -7,8 +7,6 @@
 #include <boost/interprocess/containers/map.hpp>
 #include <boost/interprocess/containers/string.hpp>
 #include <boost/interprocess/allocators/allocator.hpp>
-//#include <boost/signals2.hpp>
-//#include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
 
 #include <iostream>
@@ -18,6 +16,7 @@
 #include <conio.h>
 #include <windows.h>
 #include <time.h>
+#include <sys/timeb.h>
 //#include <typeindex>
 
 #define MEMORY_SIZE 67108864 /* shared memory için kullanılacak belleğin boyutu (byte) */
@@ -73,6 +72,13 @@ namespace Shared {
 	/*------------------------------------notification vector-----------------------------------------------*/
 }
 
+static inline int getMilliCount() {
+	timeb tb;
+	ftime(&tb);
+	int nCount = tb.millitm + (tb.time & 0xfffff) * 1000;
+	return nCount;
+}
+
 class Shared_Memory_Handler
 {
 public:
@@ -100,22 +106,18 @@ public:
 															   invalid_argument exception'ı throw ediyor. Dolayısıyla try-catch ile
 															   kullanılması gerek. Aksi takdirde yazılım çakabilir!*/
 	{
-		if (set_lock(key))
+		T1 *_result = segment->find<T1>(key.c_str()).first;
+
+		if (_result)
 		{
-
-			T1 *_result = segment->find<T1>(key.c_str()).first;
-
-			if (_result)
-			{
-				return_value = *_result;
-				segment->destroy<T1>(key.c_str());
-				release_lock(key);
-			}
-			else
-			{
-				throw std::invalid_argument(key);
-			}
+			return_value = *_result;
+			segment->destroy<T1>(key.c_str());
 		}
+		else
+		{
+			throw std::invalid_argument(key);
+		}
+
 	}
 	/*---------------------------------------------------------------------------------------------------------------*/
 
@@ -262,7 +264,7 @@ public:
 			add_notification(key.c_str(), typeid(std::vector<std::string>).name());
 		}
 	}
-	
+
 	void get_value(std::string const & key, std::vector<std::string> & return_vector)/* Eğer çekmek istediğimiz key shared memory üzerinde bulunmuyorsa
 																					 invalid_argument exception'ı throw ediyor. Dolayısıyla try-catch ile
 																					 kullanılması gerek. Aksi takdirde yazılım çakabilir!*/

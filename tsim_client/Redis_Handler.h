@@ -1,9 +1,13 @@
 #pragma once
 
 #include <cpp_redis/cpp_redis>
+#include <hiredis.h>
 #include <sstream>
-#include <boost/lexical_cast.hpp>
 
+#include <boost/lexical_cast.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
 #define REDIS_PRECISION 2 /*saklanacak ondalýklý sayýlarýn virgülden sonra kaç hane ilerleyeceðini belirler */
 
@@ -22,6 +26,8 @@ enum subscribe_type { value, vector, map, field }; /*
 		  subscribe(Evren.Samanyolu.Gunes_Sistemi, subscribe_type::field);
 */
 
+
+
 class Redis_Handler
 {
 public:
@@ -29,7 +35,7 @@ public:
 	~Redis_Handler();
 
 	template <typename T1>
-	void set_value(std::string const & key, T1 const & value)
+	void set_value(std::string const & key, T1 const & value, bool const & notification_enabled = true)
 	{
 		//std::cout << "set_value | key: " << key << " value: " << value << std::endl;
 
@@ -46,6 +52,9 @@ public:
 			//std::cout << key << std::endl;
 			//std::cout << "set '" << key << "' to " << typeid(T1).name() << " '" << str_value << "' | reply: " << str_reply << std::endl;
 		}).commit();
+
+		if (notification_enabled)
+			add_notificaton(key, value);
 
 		//client.sync_commit(std::chrono::milliseconds(50));
 	}
@@ -68,8 +77,9 @@ public:
 		}
 
 		delete_key(key);
-		client.rpush(key, multi_set_vector);
-		//client.sync_commit();
+		client.rpush(key, multi_set_vector).commit();
+
+		add_notificaton(key, arg_vector);
 	}
 
 	template <typename T1, typename T2>
@@ -95,15 +105,16 @@ public:
 		}
 
 		delete_key(key);
-		client.hmset(key, multi_set_vector);
-		client.sync_commit();
+		client.hmset(key, multi_set_vector).commit;
+
+		add_notificaton(key, arg_vector);
 	}
 
 	void delete_key(std::string const & key)
 	{
 		std::vector<std::string> delete_vector;
 		delete_vector.push_back(key);
-		client.del(delete_vector);
+		client.del(delete_vector).commit();
 	}
 
 	template <typename OBJECT>
@@ -118,12 +129,16 @@ public:
 		if (type == field)
 			str_key += "*";
 
+
 		auto func_psubscribe_reply = [=](const std::string& chan, const std::string& msg) {
 
 			std::string redis_key = chan.substr(chan.find(key)); /* client'ýn deðeri çekebilmesi için
 																 key oluþturuluyor */
 
-			if (msg.find("lpush") < msg.size() || msg.find("rpush") < msg.size() || msg.find("hmset") < msg.size() || msg.find("set") < msg.size())
+			std::cout << " redis_key : " << redis_key << " msg : " << msg << std::endl;
+
+
+			if (msg.find("test_time") < msg.size() || msg.find("rpush") < msg.size() || msg.find("hmset") < msg.size() || msg.find("set") < msg.size())
 				handle_subscriber_reply(redis_key, shm_handler);
 
 		};
@@ -140,9 +155,9 @@ public:
 		{
 			std::string redis_type = reply.as_string();
 
-			//std::cout << "---- Subscriber Notification ----" << std::endl;
-			//std::cout << "redis_type : " << redis_type << std::endl;
-			//std::cout << "---- Subscriber Notification ----" << std::endl;
+			std::cout << "---- Subscriber Notification ----" << std::endl;
+			std::cout << "redis_type : " << redis_type << std::endl;
+			std::cout << "---- Subscriber Notification ----" << std::endl;
 
 			process_to_shm(key, reply.as_string(), shm_handler);
 		};
@@ -179,177 +194,143 @@ public:
 		}
 		else if (redis_type == "list")
 		{
-			client.ttl(key, [=](cpp_redis::reply& reply) {
+			client.llen(key, [=](cpp_redis::reply& reply) {
 
-				//std::cout << "ttl : " << reply.as_integer() << std::endl;
+				//std::cout << "llen : " << reply.as_integer() << std::endl;
 
-				if (reply.as_integer() == -2) /* ttl komutu key'in ömrünü döndürür. '-2' deðeri ise
-												 key'in var olmadýðýný belirtir */
+				if (reply.as_integer() == 0)
 				{
-					std::cerr << " Notification Error: Key does NOT exits!" << std::endl;
+					std::cerr << " Notification Error: list is empty or Key does NOT exits!" << std::endl;
 					return;
 				}
 
-				client.llen(key, [=](cpp_redis::reply& reply) {
+				client.lrange(key, 0, reply.as_integer(), [=](cpp_redis::reply& reply) {
 
-					//std::cout << "llen : " << reply.as_integer() << std::endl;
+					auto _array = reply.as_array();
 
-					if (reply.as_integer() == 0)
+					std::cout << "array : " << _array << std::endl;
+
+					try /* gelen deðeri double a çevirmeye çalýþýr. baþarýsýz olur ise string olduðunu farzeder */
 					{
-						std::cerr << " Notification Error: list is empty!" << std::endl;
-						return;
+						std::vector<double> d_vector;
+
+						for (auto it = _array.begin(); it != _array.end(); it++)
+						{
+
+							double d_val = boost::lexical_cast<double>(((cpp_redis::reply)*it).as_string());
+
+							//std::cout << "d_val : " << d_val << std::endl;
+
+							d_vector.push_back(d_val);
+
+						}
+						shm_handler->set_value(key, d_vector);
 					}
+					catch (const std::exception&)
+					{
+						std::vector<std::string> s_vector;
 
-					client.lrange(key, 0, reply.as_integer(), [=](cpp_redis::reply& reply) {
-
-						auto _array = reply.as_array();
-
-						std::cout << "array : " << _array << std::endl;
-
-						try /* gelen deðeri double a çevirmeye çalýþýr. baþarýsýz olur ise string olduðunu farzeder */
+						for (auto it = _array.begin(); it != _array.end(); it++)
 						{
-							std::vector<double> d_vector;
+							std::string s_val = ((cpp_redis::reply)*it).as_string();
+							s_vector.push_back(s_val);
 
-							for (auto it = _array.begin(); it != _array.end(); it++)
-							{
+							//std::cout << "s_val : " << s_val << std::endl;
 
-								double d_val = boost::lexical_cast<double>(((cpp_redis::reply)*it).as_string());
-
-								//std::cout << "d_val : " << d_val << std::endl;
-
-								d_vector.push_back(d_val);
-
-							}
-							shm_handler->set_value(key, d_vector);
 						}
-						catch (const std::exception&)
-						{
-							std::vector<std::string> s_vector;
-
-							for (auto it = _array.begin(); it != _array.end(); it++)
-							{
-								std::string s_val = ((cpp_redis::reply)*it).as_string();
-								s_vector.push_back(s_val);
-
-								//std::cout << "s_val : " << s_val << std::endl;
-
-							}
-							shm_handler->set_value(key, s_vector);
-						}
-
-					}).commit();
+						shm_handler->set_value(key, s_vector);
+					}
 
 				}).commit();
 
 			}).commit();
 
-
 		}
 		else if (redis_type == "hash")
 		{
+			client.hgetall(key, [=](cpp_redis::reply& reply) {
 
-			client.ttl(key, [=](cpp_redis::reply& reply) {
+				auto _array = reply.as_array();
 
-				//std::cout << "ttl : " << reply.as_integer() << std::endl;
-
-				if (reply.as_integer() == -2) /* ttl komutu key'in ömrünü döndürür. '-2' deðeri ise
-											  key'in var olmadýðýný belirtir */
+				if (_array.size() <= 0)
 				{
-					std::cerr << " Notification Error: Key does NOT exits!" << std::endl;
+					std::cerr << " Notification Error: hash is empty or Key does NOT exits!" << std::endl;
 					return;
 				}
 
-				client.hlen(key, [=](cpp_redis::reply& reply) {
+				//std::cout << "array : " << _array << std::endl;
 
-					//std::cout << "hlen : " << reply.as_integer() << std::endl;
+				//for (auto it = _array.begin(); it != _array.end(); it++)
+				//{
+				//	std::cout << "_key : " << ((cpp_redis::reply)*it).as_string() << std::endl;
+				//	it++;
+				//	std::cout << "_val : " << ((cpp_redis::reply)*it).as_string() << std::endl;
 
-					if (reply.as_integer() == 0)
+				//	//d_vector.push_back(d_val);
+				//}
+
+				try /* gelen deðeri double a çevirmeye çalýþýr. baþarýsýz olur ise string olduðunu farzeder */
+				{
+					std::map<double, double> d_map;
+
+					for (auto it = _array.begin(); it != _array.end(); it++)
 					{
-						std::cerr << " Notification Error: list is empty!" << std::endl;
-						return;
+
+						double d_key = boost::lexical_cast<double>(((cpp_redis::reply)*it).as_string());
+						it++;
+						double d_val = boost::lexical_cast<double>(((cpp_redis::reply)*it).as_string());
+
+						//std::cout << "d_val : " << d_val << std::endl;
+
+						d_map[d_key] = d_val;
+
 					}
 
-					client.hgetall(key, [=](cpp_redis::reply& reply) {
+					shm_handler->set_value(key, d_map);
+				}
+				catch (const std::exception&)
+				{
+					try
+					{
+						std::map<std::string, double> sd_map;
 
-						auto _array = reply.as_array();
-
-						//std::cout << "array : " << _array << std::endl;
-
-						//for (auto it = _array.begin(); it != _array.end(); it++)
-						//{
-						//	std::cout << "_key : " << ((cpp_redis::reply)*it).as_string() << std::endl;
-						//	it++;
-						//	std::cout << "_val : " << ((cpp_redis::reply)*it).as_string() << std::endl;
-
-						//	//d_vector.push_back(d_val);
-						//}
-
-						try /* gelen deðeri double a çevirmeye çalýþýr. baþarýsýz olur ise string olduðunu farzeder */
+						for (auto it = _array.begin(); it != _array.end(); it++)
 						{
-							std::map<double, double> d_map;
 
-							for (auto it = _array.begin(); it != _array.end(); it++)
-							{
+							std::string s_key = ((cpp_redis::reply)*it).as_string();
+							it++;
+							double d_val = boost::lexical_cast<double>(((cpp_redis::reply)*it).as_string());
 
-								double d_key = boost::lexical_cast<double>(((cpp_redis::reply)*it).as_string());
-								it++;
-								double d_val = boost::lexical_cast<double>(((cpp_redis::reply)*it).as_string());
+							//std::cout << "d_val : " << d_val << std::endl;
 
-								//std::cout << "d_val : " << d_val << std::endl;
-
-								d_map[d_key] = d_val;
-
-							}
-
-							shm_handler->set_value(key, d_map);
+							sd_map[s_key] = d_val;
 						}
-						catch (const std::exception&)
+
+
+						shm_handler->set_value(key, sd_map);
+					}
+					catch (const std::exception&)
+					{
+
+						std::map<std::string, std::string> s_map;
+
+						for (auto it = _array.begin(); it != _array.end(); it++)
 						{
-							try
-							{
-								std::map<std::string, double> sd_map;
 
-								for (auto it = _array.begin(); it != _array.end(); it++)
-								{
+							std::string s_key = ((cpp_redis::reply)*it).as_string();
+							it++;
+							std::string s_val = ((cpp_redis::reply)*it).as_string();
 
-									std::string s_key = ((cpp_redis::reply)*it).as_string();
-									it++;
-									double d_val = boost::lexical_cast<double>(((cpp_redis::reply)*it).as_string());
+							//std::cout << "d_val : " << d_val << std::endl;
 
-									//std::cout << "d_val : " << d_val << std::endl;
-
-									sd_map[s_key] = d_val;
-								}
-
-
-								shm_handler->set_value(key, sd_map);
-							}
-							catch (const std::exception&)
-							{
-
-								std::map<std::string, std::string> s_map;
-
-								for (auto it = _array.begin(); it != _array.end(); it++)
-								{
-
-									std::string s_key = ((cpp_redis::reply)*it).as_string();
-									it++;
-									std::string s_val = ((cpp_redis::reply)*it).as_string();
-
-									//std::cout << "d_val : " << d_val << std::endl;
-
-									s_map[s_key] = s_val;
-
-								}
-
-								shm_handler->set_value(key, s_map);
-							}
+							s_map[s_key] = s_val;
 
 						}
 
-					}).commit();
+						shm_handler->set_value(key, s_map);
+					}
 
-				}).commit();
+				}
 
 			}).commit();
 		}
@@ -360,12 +341,89 @@ public:
 		}
 	}
 
+
+	template <typename T1>
+	std::string get_type(T1 const & arg)
+	{
+		std::string _type;
+		_type = "";
+
+		if (typeid(T1) == typeid(bool))
+		{
+			_type.append("bool");
+		}
+		else if (typeid(T1) == typeid(int))
+		{
+			_type.append("int");
+		}
+		else if (typeid(T1) == typeid(double))
+		{
+			_type.append("double");
+		}
+		else if (typeid(T1) == typeid(std::string))
+		{
+			_type.append("string");
+		}
+		else if (typeid(T1) == typeid(std::vector<int>))
+		{
+			_type.append("vector_int");
+		}
+		else if (typeid(T1) == typeid(std::vector<double>))
+		{
+			_type.append("vector_double");
+		}
+		else if (typeid(T1) == typeid(std::vector<std::string>))
+		{
+			_type.append("vector_string");
+		}
+		else if (typeid(T1) == typeid(std::map<double, double>))
+		{
+			_type.append("map_double_double");
+		}
+		else if (typeid(T1) == typeid(std::map<std::string, double>))
+		{
+			_type.append("map_string_double");
+		}
+		else if (typeid(T1) == typeid(std::map<std::string, std::string>))
+		{
+			_type.append("map_string_string");
+		}
+		else
+		{
+			std::cout << "Redis_Handler::get_type : wrong type!" << std::endl;
+		}
+
+		std::cout << _type << std::endl;
+		return _type;
+
+	}
+
+	template <typename T1>
+	void add_notificaton(std::string const & key, T1 const & arg)
+	{
+		std::string _type = get_type(arg);
+
+		client.publish(key, _type, [=](cpp_redis::reply& reply)
+		{
+			if (reply.is_string())
+			{
+				std::string str_reply = reply.as_string();
+				std::cout << str_reply << std::endl;
+			}
+		}).commit();
+	}
+
+
+	std::string set_lock(std::string const & key, int time_out = 1000);
+
+	bool release_lock(std::string const & key, std::string const & uuid);
+	
 	void client_commit(); // client'a verilen komutlarý server'a iþler
 	void subscriber_commit(); // subscriber'a verilen komutlarý server'a iþler
 
-private:
+protected:
 	cpp_redis::redis_client client;
-	cpp_redis::future_client future_client;
+	cpp_redis::sync_client sync_client;
 	cpp_redis::redis_subscriber subscriber;
 };
 
