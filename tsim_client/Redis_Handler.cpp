@@ -21,9 +21,9 @@ Redis_Handler::Redis_Handler()
 	client.select(11);
 	client.commit();
 
-	//subscriber.subscribe("some_chan", [](const std::string& chan, const std::string& msg) {
-	//	std::cout << "MESSAGE " << chan << ": " << msg << std::endl;
-	//}).commit();
+	subscriber.subscribe("some_chan", [](const std::string& chan, const std::string& msg) {
+		std::cout << "MESSAGE " << chan << ": " << msg << std::endl;
+	}).commit();
 }
 
 

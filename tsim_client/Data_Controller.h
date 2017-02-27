@@ -7,7 +7,7 @@
 #include "Redis_Handler.h"
 #include "Call_Back_Timer.h"
 
-#define TIMER_INTERVAL 5
+#define TIMER_INTERVAL 100
 
 class Data_Controller
 {

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cpp_redis/cpp_redis>
-#include <hiredis.h>
 #include <sstream>
 
 #include <boost/lexical_cast.hpp>
