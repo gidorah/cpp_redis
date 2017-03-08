@@ -47,11 +47,12 @@ public:
   disconnect() { m_client.disconnect(); }
   bool
   is_connected() { return m_client.is_connected(); }
-#if 0
- {
-    return m_client.().get();
+
+  reply
+  send(const std::vector<std::string>& redis_cmd) {
+    return m_client.send(redis_cmd).get();
   }
-#endif
+
   reply
   append(const std::string& key, const std::string& value) {
     return m_client.append(key, value).get();
@@ -645,8 +646,8 @@ public:
     return m_client.set_advanced(key, value, ex, ex_sec, px, px_milli, nx, xx).get();
   }
   reply
-  setbit(const std::string& key, int offset, const std::string& value) {
-    return m_client.setbit(key, offset, value).get();
+  setbit_(const std::string& key, int offset, const std::string& value) {
+    return m_client.setbit_(key, offset, value).get();
   }
   reply
   setex(const std::string& key, int seconds, const std::string& value) {
