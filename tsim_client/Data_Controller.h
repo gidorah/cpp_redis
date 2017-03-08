@@ -24,6 +24,9 @@ private:
 	void process_shm_changes(); /* shared memory'de karþý tarafýn yaptýðý deðiþiklikleri hissedip
 								redis sunucusuna iþler. */
 
+	void process_remote_call(); /* shared memory'de karþý tarafýn yaptýðý deðiþiklikleri hissedip
+								redis sunucusuna iþler. */
+
 	void test_print()
 	{
 		std::cout << "processed data count : " << shm_handler->test_count << std::endl;

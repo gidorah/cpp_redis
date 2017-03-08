@@ -64,13 +64,15 @@ Shared_Memory_Handler::Shared_Memory_Handler(std::string const & segment_name) :
 	}
 
 
-	call_test_method([](std::string& reply) {
-		std::cout << "first test of method call : " << reply << std::endl;
+	std::string uuid_s = call_test_method([]() {
+		std::cout << "first test of method call " << std::endl;
 	});
-	std::cout << "hello " << std::endl;
 
-	test_receive_handler("oh la la!!!");
+	std::cout << "uuid :  " << uuid_s << std::endl;
 
+	bool result = test_receive_handler(uuid_s);
+
+	std::cout << "result :  " << result << std::endl;
 }
 
 

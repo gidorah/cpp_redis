@@ -47,3 +47,7 @@ CMakeFiles/
 Release/
 Debug/
 Makefile
+.vs/cpp_redis/v15/ipch/AutoPCH/TSIM_CLIENT-f9343e2d/DATA_CONTROLLER-1a026d86/DATA_CONTROLLER.ipch
+*.ipch
+.vs/cpp_redis/v15/Solution.VC.db-shm
+*.db-wal

@@ -107,6 +107,11 @@ void Data_Controller::process_shm_changes()
 					redis_handler->subscribe(*it);
 				}
 			}
+			if (_notification._type == "##RPC##")
+			{
+				shm_handler->handle_remote_call_reply(_notification._key);
+
+			}
 			else if (_notification._type == typeid(bool).name())
 			{
 				bool _value; 

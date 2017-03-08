@@ -7,6 +7,11 @@
 #include <boost/interprocess/containers/map.hpp>
 #include <boost/interprocess/containers/string.hpp>
 #include <boost/interprocess/allocators/allocator.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/lexical_cast.hpp>
+
 //#include <boost/chrono.hpp>
 //#include <boost/thread.hpp>
 
@@ -91,7 +96,7 @@ public:
 	Shared::segment *segment;
 	Shared::segment_manager *segment_manager;
 
-	typedef std::function<void(std::string&)> reply_callback_t; /* string yerine cevap olarak gelecek notifikasyon
+	typedef std::function<void()> reply_callback_t; /* string yerine cevap olarak gelecek notifikasyon
 																artık nasıl olacaksa o gelecek */
 
 	Shared_Memory_Handler(std::string const & segment_name = "Redis_Shared_Memory");
@@ -612,26 +617,45 @@ public:
 		return result;
 	}
 
-	void call_test_method(const reply_callback_t& callback = nullptr)
+	std::string push_remote_call(const reply_callback_t& callback = nullptr)
 	{
-		set_value("test_method", (int)-666);
-		m_callbacks.push(callback);
+		boost::uuids::uuid uuid;
+		std::string str_uuid;
+
+		do /*Aynı key'e sahip bir işlemi sıraya koyma olasılığını ortadan kaldırmak için*/
+		{
+			uuid = boost::uuids::random_generator()();
+			str_uuid = boost::lexical_cast<std::string>(uuid);
+		} while (m_callbacks.find(str_uuid) != m_callbacks.end());
+
+		m_callbacks[str_uuid] =  callback;
+
+		add_notification(str_uuid, "##REMOTE_CALL##");
+
+		return str_uuid;
 	}
 
-	void test_receive_handler(std::string reply) 
+	bool handle_remote_call_reply(std::string reply_uuid)
 	{
 		reply_callback_t callback = nullptr;
 
 		{
-			if (m_callbacks.size()) {
-				callback = m_callbacks.front();
-				m_callbacks.pop();
+			if (m_callbacks.find(reply_uuid) != m_callbacks.end()) {
+				callback = m_callbacks[reply_uuid];
+				m_callbacks.erase(reply_uuid);
 			}
 		}
 
 		if (callback) {
-			callback(reply);
+			callback();
+			return true;
 		}
+
+		return false;
+	}
+
+	void handle_remote_call(std::string call_uuid)
+	{
 
 	}
 
@@ -640,5 +664,8 @@ private:
 	Shared::sh_notification_map *incoming_notifications;
 	Shared::sh_notification_map *outgoing_notifications;
 
-	std::queue<reply_callback_t> m_callbacks;
+	Shared::sh_notification_map *incoming_rpc_notification;
+	Shared::sh_notification_map *outgoing_rpc_notification;
+
+	std::map<std::string, reply_callback_t> m_callbacks;
 };
