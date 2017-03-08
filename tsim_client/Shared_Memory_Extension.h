@@ -96,7 +96,7 @@ public:
 			_test->test_dbl_vector.push_back(*it);
 		}
 
-		add_notification(key.c_str(), typeid(Shared_Extension::Test_Struct).name());
+		add_data_notification(key.c_str(), typeid(Shared_Extension::Test_Struct).name());
 
 	}
 	void get_test_struct(std::string const & key, Shared_Extension::Test_Struct & return_struct)

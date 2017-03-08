@@ -41,43 +41,90 @@ namespace Shared {
 	typedef bip::basic_string<char, std::char_traits<char>, char_allocator> string;
 	/*-------------------------------------generic Shared definitions---------------------------------------*/
 
-	/*------------------------------------notification vector-----------------------------------------------*/
-
+	/*------------------------------------data notification vector-----------------------------------------------*/
 	typedef struct
 	{
 		std::string _key; /* değişikliğin vuku bulduğu key */
 		std::string _type; /* key'in tanımladığı değişkenin tipi */
 
-	}Notification_Struct;
+	}Data_Notification_Struct;
 
-	class Sh_Notification_Struct
+	class Sh_Data_Notification_Struct
 	{
 	public:
 		string _key; /* değişikliğin vuku bulduğu key */
 		string _type; /* key'in tanımladığı değişkenin tipi */
 
-		Sh_Notification_Struct(const void_allocator &void_alloc)
+		Sh_Data_Notification_Struct(const void_allocator &void_alloc)
 			: _key(void_alloc),
 			_type(void_alloc)
 		{}
 
-		Sh_Notification_Struct(Notification_Struct const &original, const void_allocator &void_alloc)
+		Sh_Data_Notification_Struct(Data_Notification_Struct const &original, const void_allocator &void_alloc)
 			: _key(original._key.c_str(), void_alloc),
 			_type(original._type.c_str(), void_alloc)
 		{}
 
-		Sh_Notification_Struct(std::string const &original_key, std::string const &original_type, const void_allocator &void_alloc)
+		Sh_Data_Notification_Struct(std::string const &original_key, std::string const &original_type, const void_allocator &void_alloc)
 			: _key(original_key.c_str(), void_alloc),
 			_type(original_type.c_str(), void_alloc)
 		{}
 	};
 
-	typedef std::pair<const string, Sh_Notification_Struct>            sh_notification_pair;
-	typedef std::pair<string, Sh_Notification_Struct>                  movable_sh_notification_pair;
-	typedef bip::allocator<sh_notification_pair, segment_manager>      sh_notification_allocator;
-	typedef bip::map< string, Sh_Notification_Struct
-		, std::less<string>, sh_notification_allocator>              sh_notification_map;
-	/*------------------------------------notification vector-----------------------------------------------*/
+	typedef std::pair<const string, Sh_Data_Notification_Struct>            sh_data_notification_pair;
+	typedef std::pair<string, Sh_Data_Notification_Struct>                  movable_sh_data_notification_pair;
+	typedef bip::allocator<sh_data_notification_pair, segment_manager>      sh_data_notification_allocator;
+	typedef bip::map< string, Sh_Data_Notification_Struct
+		, std::less<string>, sh_data_notification_allocator>              sh_data_notification_map;
+	/*------------------------------------data notification vector-----------------------------------------------*/
+
+	/*------------------------------------RPC notification vector-----------------------------------------------*/
+
+	enum rpc_notification_type
+	{
+		method_call = 0,
+		reply = 1
+	};
+
+	typedef struct
+	{
+		std::string _uuid; /* remote method için unique id */
+		std::string _method_id; /* remote methodun adı */
+		rpc_notification_type _type; /* gelen notification tipi */
+
+	}Rpc_Notification_Struct;
+
+	class Sh_Rpc_Notification_Struct
+	{
+	public:
+		string _uuid; /* remote method için unique id */
+		string _method_id; /* remote methodun adı */
+		rpc_notification_type _type; /* gelen notification tipi */
+
+		Sh_Rpc_Notification_Struct(const void_allocator &void_alloc)
+			: _uuid(void_alloc),
+			_method_id(void_alloc)
+		{}
+
+		Sh_Rpc_Notification_Struct(Rpc_Notification_Struct const &original, const void_allocator &void_alloc)
+			: _uuid(original._uuid.c_str(), void_alloc),
+			_method_id(original._method_id.c_str(), void_alloc),
+			_type(original._type)
+		{}
+
+		Sh_Rpc_Notification_Struct(std::string const &original_uuid, std::string const &original_method_id, rpc_notification_type const &original_type, const void_allocator &void_alloc)
+			: _uuid(original_uuid.c_str(), void_alloc),
+			_method_id(original_method_id.c_str(), void_alloc),
+			_type(original_type)
+		{}
+	};
+
+	typedef std::pair<const string, Sh_Rpc_Notification_Struct>            sh_rpc_notification_pair;
+	typedef std::pair<string, Sh_Rpc_Notification_Struct>                  movable_sh_rpc_notification_pair;
+	typedef bip::allocator<sh_rpc_notification_pair, segment_manager>      sh_rpc_notification_allocator;
+	typedef bip::map< string, Sh_Rpc_Notification_Struct
+		, std::less<string>, sh_rpc_notification_allocator>              sh_rpc_notification_map;
+	/*------------------------------------RPC notification vector-----------------------------------------------*/
 }
 
 //static inline int getMilliCount() {
@@ -96,22 +143,21 @@ public:
 	Shared::segment *segment;
 	Shared::segment_manager *segment_manager;
 
-	typedef std::function<void()> reply_callback_t; /* string yerine cevap olarak gelecek notifikasyon
-																artık nasıl olacaksa o gelecek */
+	typedef std::function<void()> reply_callback_t;
 
 	Shared_Memory_Handler(std::string const & segment_name = "Redis_Shared_Memory");
 	~Shared_Memory_Handler();
 
 	/*---------------------------------------------------------------------------------------------------------------*/
 	template <typename T1>
-	void set_value(std::string const & key, T1 const & arg_value)
+	void set_value(std::string const & key, T1 const & arg_value, bool const &disable_notification = false)
 	{
 		std::cout << key << " : " << arg_value << std::endl;
 
 		T1 *_var = segment->find_or_construct<T1>(key.c_str())(arg_value);
 		*_var = arg_value;
 
-		add_notification(key.c_str(), typeid(T1).name());
+		if(disable_notification == false) add_data_notification(key.c_str(), typeid(T1).name());
 	}
 
 	template <typename T1>
@@ -135,7 +181,7 @@ public:
 
 
 	/*---------------------------------------------------------------------------------------------------------------*/
-	void set_value(std::string const & key, std::string const & arg_str)
+	void set_value(std::string const & key, std::string const & arg_str, bool const &disable_notification = false)
 	{
 
 		int uuid = set_lock(key);
@@ -152,7 +198,7 @@ public:
 
 			std::cout << "\nset_string : " << key << std::endl;
 
-			add_notification(key.c_str(), typeid(std::string).name());
+			if(disable_notification == false) add_data_notification(key.c_str(), typeid(std::string).name());
 		}
 	}
 
@@ -186,7 +232,7 @@ public:
 
 	/*---------------------------------------------------------------------------------------------------------------*/
 	template <typename T1>
-	void set_value(std::string const & key, std::vector<T1> const & arg_vector)
+	void set_value(std::string const & key, std::vector<T1> const & arg_vector, bool const &disable_notification = false)
 	{
 		typedef bip::allocator<T1, Shared::segment_manager> sh_allocator;
 		typedef bip::vector<T1, sh_allocator> sh_vector;
@@ -213,7 +259,7 @@ public:
 
 			release_lock(key, uuid);
 
-			add_notification(key.c_str(), typeid(std::vector<T1>).name());
+			if(disable_notification == false) add_data_notification(key.c_str(), typeid(std::vector<T1>).name());
 		}
 
 	}
@@ -256,7 +302,7 @@ public:
 
 
 	/*---------------------------------------------------------------------------------------------------------------*/
-	void set_value(std::string const & key, std::vector<std::string> const & arg_vector)
+	void set_value(std::string const & key, std::vector<std::string> const & arg_vector, bool const &disable_notification = false)
 	{
 		typedef bip::allocator<Shared::string, Shared::segment_manager> sh_allocator;
 		typedef bip::vector<Shared::string, sh_allocator> sh_vector;
@@ -283,7 +329,7 @@ public:
 
 			release_lock(key, uuid);
 
-			add_notification(key.c_str(), typeid(std::vector<std::string>).name());
+			if(disable_notification == false) add_data_notification(key.c_str(), typeid(std::vector<std::string>).name());
 		}
 	}
 
@@ -324,7 +370,7 @@ public:
 
 	/*---------------------------------------------------------------------------------------------------------------*/
 	template <typename T1, typename T2>
-	void set_value(std::string const & key, std::map<T1, T2> const & arg_map)
+	void set_value(std::string const & key, std::map<T1, T2> const & arg_map, bool const &disable_notification = false)
 	{
 		typedef std::pair<const T1, T2> map_value_type;
 		typedef std::pair<T1, T2> movable_to_map_value_type;
@@ -358,7 +404,7 @@ public:
 
 			release_lock(key, uuid);
 
-			add_notification(key.c_str(), typeid(std::map<T1, T2>).name());
+			if(disable_notification == false) add_data_notification(key.c_str(), typeid(std::map<T1, T2>).name());
 		}
 	}
 
@@ -403,7 +449,7 @@ public:
 
 
 	/*---------------------------------------------------------------------------------------------------------------*/
-	void set_value(std::string const & key, std::map<std::string, std::string> const & arg_map)
+	void set_value(std::string const & key, std::map<std::string, std::string> const & arg_map, bool const &disable_notification = false)
 	{
 		typedef std::pair<const Shared::string, Shared::string> map_value_type;
 		typedef std::pair<Shared::string, Shared::string> movable_to_map_value_type;
@@ -436,7 +482,7 @@ public:
 
 			release_lock(key, uuid);
 
-			add_notification(key.c_str(), typeid(std::map<std::string, std::string>).name());
+			if(disable_notification == false) add_data_notification(key.c_str(), typeid(std::map<std::string, std::string>).name());
 		}
 	}
 
@@ -485,7 +531,7 @@ public:
 
 	/*---------------------------------------------------------------------------------------------------------------*/
 	template <typename T1>
-	void set_value(std::string const & key, std::map<std::string, T1> const & arg_map)
+	void set_value(std::string const & key, std::map<std::string, T1> const & arg_map, bool const &disable_notification = false)
 	{
 		typedef std::pair<const Shared::string, T1> map_value_type;
 		typedef std::pair<Shared::string, T1> movable_to_map_value_type;
@@ -518,7 +564,7 @@ public:
 
 			release_lock(key, uuid);
 
-			add_notification(key.c_str(), typeid(std::map<std::string, T1>).name());
+			if(disable_notification == false) add_data_notification(key.c_str(), typeid(std::map<std::string, T1>).name());
 		}
 
 	}
@@ -563,11 +609,17 @@ public:
 	}
 	/*---------------------------------------------------------------------------------------------------------------*/
 
-	void add_notification(std::string const & key, std::string const & type);
+	void add_data_notification(std::string const & key, std::string const & type);
 
-	int get_notification_queue_size();
+	int get_data_notification_queue_size();
 
-	Shared::Notification_Struct pop_notification();
+	Shared::Data_Notification_Struct pop_data_notification();
+
+	void add_rpc_notification(std::string const &uuid, std::string const &method_name, Shared::rpc_notification_type type);
+
+	int get_rpc_notification_queue_size();
+
+	Shared::Rpc_Notification_Struct pop_rpc_notification();
 
 	std::string str_lock;
 
@@ -617,7 +669,7 @@ public:
 		return result;
 	}
 
-	std::string push_remote_call(const reply_callback_t& callback = nullptr)
+	std::string push_remote_call(std::string const &method_name, const reply_callback_t& callback = nullptr)
 	{
 		boost::uuids::uuid uuid;
 		std::string str_uuid;
@@ -628,9 +680,8 @@ public:
 			str_uuid = boost::lexical_cast<std::string>(uuid);
 		} while (m_callbacks.find(str_uuid) != m_callbacks.end());
 
-		m_callbacks[str_uuid] =  callback;
-
-		add_notification(str_uuid, "##REMOTE_CALL##");
+		m_callbacks[str_uuid] = callback;
+		add_rpc_notification(str_uuid, method_name, Shared::rpc_notification_type::method_call);
 
 		return str_uuid;
 	}
@@ -661,11 +712,11 @@ public:
 
 private:
 
-	Shared::sh_notification_map *incoming_notifications;
-	Shared::sh_notification_map *outgoing_notifications;
+	Shared::sh_data_notification_map *incoming_data_notifications;
+	Shared::sh_data_notification_map *outgoing_data_notifications;
 
-	Shared::sh_notification_map *incoming_rpc_notification;
-	Shared::sh_notification_map *outgoing_rpc_notification;
+	Shared::sh_rpc_notification_map *incoming_rpc_notifications;
+	Shared::sh_rpc_notification_map *outgoing_rpc_notifications;
 
 	std::map<std::string, reply_callback_t> m_callbacks;
 };

@@ -42,7 +42,6 @@ public:
 	{
 		auto process_get_reply = [=](cpp_redis::reply& reply)
 		{
-
 			std::cout << "process_get_reply key : " << key << " _value : " << reply << std::endl;
 			std::string str_reply = reply.as_string();
 			T1 _value = boost::lexical_cast<T1>(str_reply);

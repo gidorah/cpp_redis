@@ -51,6 +51,23 @@ Data_Controller::Data_Controller() :
 		//redis_handler->set_value("test_time_1", test_map);
 		//redis_handler->subscriber_commit();
 
+		int parameter_1 = 1000;
+		shm_handler->set_value("my_test_method.parameter_1", parameter_1, true);
+
+		int parameter_2 = 666;
+		shm_handler->set_value("my_test_method.parameter_2", parameter_2, true);
+
+		auto reply_ = [&]() {
+
+			int return_val;
+			std::cout << "first test of method call " << std::endl;
+			shm_handler->get_value("my_test_method.return_val", return_val);
+			std::cout << "return_val :  " << return_val << std::endl;
+
+		};
+
+		shm_handler->push_remote_call("my_test_method", reply_);
+
 	}
 	else
 	{
@@ -71,25 +88,74 @@ Data_Controller::~Data_Controller()
 
 void Data_Controller::process_shm_changes()
 {
-	int process_count = shm_handler->get_notification_queue_size(); /* her iþlem aralýðýnda vector içindeki
+	process_data_notifications();
+	process_rpc_notifications();
+}
+
+void Data_Controller::process_rpc_notifications()
+{
+	int process_count = shm_handler->get_rpc_notification_queue_size(); /* her iþlem aralýðýnda vector içindeki
 																	bütün elemanlar iþlenir.*/
 
-	//std::cout << "process_count : " << process_count << std::endl;
+	while (process_count--)
+	{
+		std::cout << "process_count : " << process_count + 1 << std::endl;
+
+
+		Shared::Rpc_Notification_Struct _notification;
+		_notification = shm_handler->pop_rpc_notification();
+
+		std::string _method_id = _notification._method_id;
+		Shared::rpc_notification_type _type = _notification._type;
+		std::string _uuid = _notification._uuid;
+
+		std::cout << "process_shm_changes" << _method_id << " | "  << _uuid << std::endl;
+
+		if (_type == Shared::rpc_notification_type::reply)
+		{
+			shm_handler->handle_remote_call_reply(_uuid);
+			return;
+		}
+
+		if (_method_id == "my_test_method" && _type == Shared::rpc_notification_type::method_call)
+		{
+			int parameter_1;
+			shm_handler->get_value("my_test_method.parameter_1", parameter_1);
+
+			int parameter_2;
+			shm_handler->get_value("my_test_method.parameter_2", parameter_2);
+
+			int return_val;
+			return_val = parameter_1 + parameter_2; // Burada çaðrýlmak istenen method ne ise o çaðrýlacak
+			shm_handler->set_value("my_test_method.return_val", return_val, true);
+			
+			shm_handler->add_rpc_notification(_uuid, _method_id, Shared::rpc_notification_type::reply); // Dönüþ olarak rpc_notification_type reply olarak yollanmalý!!!
+		}
+		
+	}
+}
+
+void Data_Controller::process_data_notifications()
+{
+	int process_count = shm_handler->get_data_notification_queue_size(); /* her iþlem aralýðýnda vector içindeki
+																	bütün elemanlar iþlenir.*/
+
+																	//std::cout << "process_count : " << process_count << std::endl;
 
 	while (process_count--)
 	{
 		//std::cout << "process_count : " << process_count + 1 << std::endl;
 
-		Shared::Notification_Struct _notification;
-		_notification = shm_handler->pop_notification();
-		
+		Shared::Data_Notification_Struct _notification;
+		_notification = shm_handler->pop_data_notification();
+
 		std::string _typename = _notification._type;
 
-		std::cout << "process_shm_changes" << _notification._key <<std::endl;
+		//std::cout << "process_shm_changes" << _notification._key << std::endl;
 
 		//std::cout << " key : " << _notification._key << std::endl;
 		//std::cout << " type : " << _notification._type << std::endl;
-		
+
 
 		try
 		{
@@ -109,12 +175,11 @@ void Data_Controller::process_shm_changes()
 			}
 			if (_notification._type == "##RPC##")
 			{
-				shm_handler->handle_remote_call_reply(_notification._key);
 
 			}
 			else if (_notification._type == typeid(bool).name())
 			{
-				bool _value; 
+				bool _value;
 				shm_handler->get_value<bool>(_notification._key, _value);
 
 				std::cout << "bool value : " << _value << std::endl;
@@ -158,7 +223,7 @@ void Data_Controller::process_shm_changes()
 				std::vector<std::string> _value;
 				shm_handler->get_value(_notification._key, _value);
 
-				for (auto i = _value.begin() ; i != _value.end(); i++)  //Insert data in the vector
+				for (auto i = _value.begin(); i != _value.end(); i++)  //Insert data in the vector
 				{
 					std::cout << " val_s : " << (*i).c_str() << std::endl;
 				}

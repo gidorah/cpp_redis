@@ -21,11 +21,13 @@ private:
 	Call_Back_Timer heartbeat;
 	Call_Back_Timer testbeat;	
 
-	void process_shm_changes(); /* shared memory'de karþý tarafýn yaptýðý deðiþiklikleri hissedip
+	void process_shm_changes(); /* shared memory'de karþý tarafýn yaptýðý deðiþiklikleri iþler. */
+
+	void process_rpc_notifications(); /* shared memory'de karþý tarafýn gönderdiði method call notification'larýný iþler. */
+
+	void process_data_notifications(); /* shared memory'de karþý tarafýn yaptýðý deðiþiklikleri hissedip
 								redis sunucusuna iþler. */
 
-	void process_remote_call(); /* shared memory'de karþý tarafýn yaptýðý deðiþiklikleri hissedip
-								redis sunucusuna iþler. */
 
 	void test_print()
 	{
