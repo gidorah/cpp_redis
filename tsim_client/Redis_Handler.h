@@ -12,23 +12,6 @@
 
 #define REDIS_PRECISION 2 /*saklanacak ondalýklý sayýlarýn virgülden sonra kaç hane ilerleyeceðini belirler */
 
-enum subscribe_type { value, vector, map, field }; /*
-
-		* Redis_Handler class'ý subscribe method'u için takip edilecek deðer,
-		  yapý ya da alanýn belirlenmesi için.
-		* value:  int, double ve bool için ortak tip. Redis içerisinde sadece tek tip veri dolaþacak.
-		  dolayýsýyla shared memory içine paslanan deðerler de bu cinste olacak.
-		* vector: redis karþýlýðý list
-		* map:
-		* field:
-		  belli bir alandaki ya da alt alandaki tüm deðerleri
-		  takip etmeyi saðlar. Belli bir konu baþlýðý olarak algýlanabileceði gibi struct olarak da
-		  düþünülebilir. Örnek:
-		  subscribe(Evren.Samanyolu.Gunes_Sistemi, subscribe_type::field);
-*/
-
-
-
 class Redis_Handler
 {
 public:
@@ -59,6 +42,8 @@ public:
 	{
 		auto process_get_reply = [=](cpp_redis::reply& reply)
 		{
+
+			std::cout << "process_get_reply key : " << key << " _value : " << reply << std::endl;
 			std::string str_reply = reply.as_string();
 			T1 _value = boost::lexical_cast<T1>(str_reply);
 			shm_handler->set_value(key, _value);
@@ -154,7 +139,7 @@ public:
 		delete_key(key);
 		sync_client.hmset(key, multi_set_vector);
 
-		publish_notificaton(key, arg_vector);
+		publish_notificaton(key, arg_map);
 	}
 
 	template <typename T1, typename T2>

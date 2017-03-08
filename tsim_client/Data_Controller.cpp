@@ -2,7 +2,7 @@
 
 
 Data_Controller::Data_Controller() :
-	shm_handler(new Shared_Memory_Extension("bizim_memory")),
+	shm_handler(new Shared_Memory_Extension("redis.dm")),
 	redis_handler(new Redis_Handler_Extension("10.11.41.1", shm_handler)),
 	heartbeat(TIMER_INTERVAL, std::bind(&Data_Controller::process_shm_changes, this)),
 	testbeat(1000, std::bind(&Data_Controller::test_print, this))
@@ -48,7 +48,7 @@ Data_Controller::Data_Controller() :
 		//redis_handler->subscribe("test_map_2", subscribe_type::map, shm_handler);
 		//redis_handler->subscribe("test_time", subscribe_type::map, shm_handler);
 		//Sleep(3000);
-		//redis_handler->set_map("test_time_1", test_map);
+		//redis_handler->set_value("test_time_1", test_map);
 		//redis_handler->subscriber_commit();
 
 	}
@@ -59,9 +59,9 @@ Data_Controller::Data_Controller() :
 
 		//redis_handler->subscribe("test_time_1", subscribe_type::map, shm_handler);
 		//Sleep(3000);
-		//redis_handler->set_map("test_time", test_map);
-		//redis_handler->set_map("test_map_1", test_map);
-		//redis_handler->set_map("test_map_2", test_map);
+		//redis_handler->set_value("test_time", test_map);
+		//redis_handler->set_value("test_map_1", test_map);
+		//redis_handler->set_value("test_map_2", test_map);
 	}
 }
 
@@ -82,150 +82,107 @@ void Data_Controller::process_shm_changes()
 
 		Shared::Notification_Struct _notification;
 		_notification = shm_handler->pop_notification();
+		
+		std::string _typename = _notification._type;
 
 		std::cout << "process_shm_changes" << _notification._key <<std::endl;
 
 		//std::cout << " key : " << _notification._key << std::endl;
 		//std::cout << " type : " << _notification._type << std::endl;
-		std::string _typename = _notification._type;
+		
 
 		try
 		{
-			//if (_notification._key == "test_time")
-			//{
-			//	unsigned long milliseconds_since_epoch =
-			//		std::chrono::system_clock::now().time_since_epoch() /
-			//		std::chrono::milliseconds(1);
-
-			//	double test_value;
-			//	shm_handler->get_value(_notification._key, test_value);
-			//	std::cout << "shm_handler->get_value " << test_value << std::endl;
+			/* TODO: Bunu böyle "if else" ile yapmak acý veriyor.
+			fakat "get_value" methodunu dinamik type ile çaðýrmayý bulana kadar böyle kalacak */
 
 
-			//	std::cout << "time passed : " << milliseconds_since_epoch - test_value << std::endl;
+			if (_notification._key == "##SUBSCRIPTIONS##")
+			{
+				std::vector<std::string> subscriptions;
+				shm_handler->get_value(_notification._key, subscriptions);
 
-			//	redis_handler->set_value(_notification._key,(double) milliseconds_since_epoch);
-			//	std::cout << "redis_handler->set_value" << test_value << std::endl;
-			//	//std::cout << "." << std::endl;
-			//}
-			//else if (_notification._key == "test_time_1")
-			//{
-			//	unsigned long milliseconds_since_epoch =
-			//		std::chrono::system_clock::now().time_since_epoch() /
-			//		std::chrono::milliseconds(1);
+				for (auto it = subscriptions.begin(); it != subscriptions.end(); it++)
+				{
+					redis_handler->subscribe(*it);
+				}
+			}
+			else if (_notification._type == typeid(bool).name())
+			{
+				bool _value; 
+				shm_handler->get_value<bool>(_notification._key, _value);
 
-			//	double test_value;
-			//	shm_handler->get_value(_notification._key, test_value);
-			//	std::cout << "shm_handler->get_value " << test_value << std::endl;
+				std::cout << "bool value : " << _value << std::endl;
+				redis_handler->set_value(_notification._key, _value);
+			}
+			else if (_notification._type == typeid(int).name())
+			{
+				int _value;
+				shm_handler->get_value<int>(_notification._key, _value);
+				std::cout << "int value : " << _value << std::endl;
+				redis_handler->set_value(_notification._key, _value);
+			}
+			else if (_notification._type == typeid(double).name())
+			{
+				double _value;
+				shm_handler->get_value<double>(_notification._key, _value);
+				std::cout << "double value : " << _value << std::endl;
+				redis_handler->set_value(_notification._key, _value);
+			}
+			else if (_notification._type == typeid(std::string).name())
+			{
+				std::string _value;
+				shm_handler->get_value(_notification._key, _value);
+				std::cout << "string value : " << _value << std::endl;
+				redis_handler->set_value(_notification._key, _value);
+			}
+			else if (_notification._type == typeid(std::vector<int>).name())
+			{
+				std::vector<int> _value;
+				shm_handler->get_value<std::vector<int>>(_notification._key, _value);
+				redis_handler->set_value(_notification._key, _value);
+			}
+			else if (_notification._type == typeid(std::vector<double>).name())
+			{
+				std::vector<double> _value;
+				shm_handler->get_value(_notification._key, _value);
+				redis_handler->set_value(_notification._key, _value);
+			}
+			else if (_notification._type == typeid(std::vector<std::string>).name())
+			{
+				std::vector<std::string> _value;
+				shm_handler->get_value(_notification._key, _value);
 
-			//	std::cout << "time passed_1 : " << milliseconds_since_epoch - test_value << std::endl;
+				for (auto i = _value.begin() ; i != _value.end(); i++)  //Insert data in the vector
+				{
+					std::cout << " val_s : " << (*i).c_str() << std::endl;
+				}
 
-			//	redis_handler->set_value(_notification._key, (double)milliseconds_since_epoch);
-			//	std::cout << "redis_handler->set_value" << test_value << std::endl;
-			//	//std::cout << "." << std::endl;
-			//}
-			//else 
-			//if (_notification._key == "test_time")
-			//{
-			//	std::map<std::string, std::string> test_map;
-			//	shm_handler->get_value(_notification._key, test_map);
-			//	redis_handler->set_map(_notification._key, test_map);
-			//	std::cout << "." << std::endl;
-			//}
-			//else if (_notification._key == "test_time_1")
-			//{
-			//	std::map<std::string, std::string> test_map;
-			//	shm_handler->get_value(_notification._key, test_map);
-			//	redis_handler->set_map(_notification._key, test_map);
-			//	std::cout << "." << std::endl;
-			//}
+				redis_handler->set_value(_notification._key, _value);
+			}
+			else if (_notification._type == typeid(std::map<double, double>).name())
+			{
+				std::map<double, double> _value;
+				shm_handler->get_value(_notification._key, _value);
+				redis_handler->set_value(_notification._key, _value);
+			}
+			else if (_notification._type == typeid(std::map<std::string, double>).name())
+			{
+				std::map<std::string, double> _value;
+				shm_handler->get_value(_notification._key, _value);
+				redis_handler->set_value(_notification._key, _value);
+			}
+			else if (_notification._type == typeid(std::map<std::string, std::string>).name())
+			{
+				std::map<std::string, std::string> _value;
+				shm_handler->get_value(_notification._key, _value);
+				redis_handler->set_value(_notification._key, _value);
+			}
 		}
 		catch (const std::invalid_argument& ia)
 		{
 			std::cerr << "get_value : Invalid key '" << ia.what() << "'" << std::endl;
 		}
-
-
-		//try
-		//{
-		//	/* TODO: Bunu böyle "if else" ile yapmak acý veriyor.
-		//	fakat "get_value" methodunu dinamik type ile çaðýrmayý bulana kadar böyle kalacak */
-		//	if (_notification._type == typeid(bool).name())
-		//	{
-		//		bool _value; 
-		//		shm_handler->get_value<bool>(_notification._key, _value);
-
-		//		std::cout << "bool value : " << _value << std::endl;
-		//		//redis_handler->set_value(_notification._key, _value);
-		//	}
-		//	else if (_notification._type == typeid(int).name())
-		//	{
-		//		int _value;
-		//		shm_handler->get_value<int>(_notification._key, _value);
-		//		std::cout << "int value : " << _value << std::endl;
-		//		////redis_handler->set_value(_notification._key, _value);
-		//	}
-		//	else if (_notification._type == typeid(double).name())
-		//	{
-		//		double _value;
-		//		shm_handler->get_value<double>(_notification._key, _value);
-		//		std::cout << "double value : " << _value << std::endl;
-		//		////redis_handler->set_value(_notification._key, _value);
-		//	}
-		//	else if (_notification._type == typeid(std::string).name())
-		//	{
-		//		std::string _value;
-		//		shm_handler->get_value(_notification._key, _value);
-		//		std::cout << "string value : " << _value << std::endl;
-		//		////redis_handler->set_value(_notification._key, _value);
-		//	}
-		//	else if (_notification._type == typeid(std::vector<int>).name())
-		//	{
-		//		std::vector<int> _value;
-		//		shm_handler->get_value<std::vector<int>>(_notification._key, _value);
-		//		//redis_handler->set_vector(_notification._key, _value);
-		//	}
-		//	else if (_notification._type == typeid(std::vector<double>).name())
-		//	{
-		//		std::vector<double> _value;
-		//		shm_handler->get_value(_notification._key, _value);
-		//		//redis_handler->set_vector(_notification._key, _value);
-		//	}
-		//	else if (_notification._type == typeid(std::vector<std::string>).name())
-		//	{
-		//		std::vector<std::string> _value;
-		//		shm_handler->get_value(_notification._key, _value);
-
-		//		for (auto i = _value.begin() ; i != _value.end(); i++)  //Insert data in the vector
-		//		{
-		//			std::cout << " val_s : " << (*i).c_str() << std::endl;
-		//		}
-
-		//		//redis_handler->set_vector(_notification._key, _value);
-		//	}
-		//	else if (_notification._type == typeid(std::map<double, double>).name())
-		//	{
-		//		std::map<double, double> _value;
-		//		shm_handler->get_value(_notification._key, _value);
-		//		//redis_handler->set_map(_notification._key, _value);
-		//	}
-		//	else if (_notification._type == typeid(std::map<std::string, double>).name())
-		//	{
-		//		std::map<std::string, double> _value;
-		//		shm_handler->get_value(_notification._key, _value);
-		//		//redis_handler->set_map(_notification._key, _value);
-		//	}
-		//	else if (_notification._type == typeid(std::map<std::string, std::string>).name())
-		//	{
-		//		std::map<std::string, std::string> _value;
-		//		shm_handler->get_value(_notification._key, _value);
-		//		//redis_handler->set_map(_notification._key, _value);
-		//	}
-		//}
-		//catch (const std::invalid_argument& ia)
-		//{
-		//	std::cerr << "get_value : Invalid key '" << ia.what() << "'" << std::endl;
-		//}
 	}
 
 	//redis_handler->client_commit();

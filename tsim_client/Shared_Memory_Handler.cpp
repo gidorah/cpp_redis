@@ -62,6 +62,15 @@ Shared_Memory_Handler::Shared_Memory_Handler(std::string const & segment_name) :
 	{
 		outgoing_notifications = segment->construct<Shared::sh_notification_map>(outgoing_notification_key.data())(std::less<Shared::string>(), alloc_inst);
 	}
+
+
+	call_test_method([](std::string& reply) {
+		std::cout << "first test of method call : " << reply << std::endl;
+	});
+	std::cout << "hello " << std::endl;
+
+	test_receive_handler("oh la la!!!");
+
 }
 
 

@@ -18,6 +18,7 @@
 #include <windows.h>
 #include <time.h>
 #include <sys/timeb.h>
+#include <queue>
 
 //#include <typeindex>
 
@@ -86,9 +87,12 @@ class Shared_Memory_Handler
 public:
 
 	bool master;
-    double test_count;
+	double test_count;
 	Shared::segment *segment;
 	Shared::segment_manager *segment_manager;
+
+	typedef std::function<void(std::string&)> reply_callback_t; /* string yerine cevap olarak gelecek notifikasyon
+																artık nasıl olacaksa o gelecek */
 
 	Shared_Memory_Handler(std::string const & segment_name = "Redis_Shared_Memory");
 	~Shared_Memory_Handler();
@@ -129,9 +133,9 @@ public:
 	void set_value(std::string const & key, std::string const & arg_str)
 	{
 
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (uuid)
+		if (uuid)
 		{
 			Shared::string sh_str_value(segment_manager);
 			sh_str_value = arg_str.c_str();
@@ -151,9 +155,9 @@ public:
 																		 invalid_argument exception'ı throw ediyor. Dolayısıyla try-catch ile
 																		 kullanılması gerek. Aksi takdirde yazılım çakabilir!*/
 	{
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (uuid)
+		if (uuid)
 		{
 			std::pair<Shared::string *, size_t > _pair = segment->find<Shared::string>(key.c_str());
 
@@ -182,9 +186,9 @@ public:
 		typedef bip::allocator<T1, Shared::segment_manager> sh_allocator;
 		typedef bip::vector<T1, sh_allocator> sh_vector;
 
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (uuid)
+		if (uuid)
 		{
 			sh_vector *shm_vector = NULL;
 			shm_vector = segment->find<sh_vector>(key.data()).first;
@@ -217,9 +221,9 @@ public:
 		typedef bip::allocator<T1, Shared::segment_manager> sh_allocator;
 		typedef bip::vector<T1, sh_allocator> sh_vector;
 
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (uuid)
+		if (uuid)
 		{
 			sh_vector shm_vector(segment_manager);
 
@@ -252,9 +256,9 @@ public:
 		typedef bip::allocator<Shared::string, Shared::segment_manager> sh_allocator;
 		typedef bip::vector<Shared::string, sh_allocator> sh_vector;
 
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (uuid)
+		if (uuid)
 		{
 			sh_vector *shm_vector = NULL;
 			shm_vector = segment->find<sh_vector>(key.data()).first;
@@ -286,9 +290,9 @@ public:
 		typedef bip::allocator<Shared::string, Shared::segment_manager> sh_allocator;
 		typedef bip::vector<Shared::string, sh_allocator> sh_vector;
 
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (uuid)
+		if (uuid)
 		{
 			sh_vector *shm_vector = NULL;
 			shm_vector = segment->find<sh_vector>(key.data()).first;
@@ -323,9 +327,9 @@ public:
 		typedef bip::map< T1, T2, std::less<T1>, map_value_type_allocator> sh_map;
 
 
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (uuid)
+		if (uuid)
 		{
 			sh_map *shm_map = segment->find<sh_map>(key.data()).first;
 
@@ -361,9 +365,9 @@ public:
 		typedef bip::allocator<map_value_type, Shared::segment_manager> map_value_type_allocator;
 		typedef bip::map< T1, T2, std::less<T1>, map_value_type_allocator> sh_map;
 
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (uuid)
+		if (uuid)
 		{
 			sh_map *shm_map = segment->find<sh_map>(key.data()).first;
 
@@ -401,9 +405,9 @@ public:
 		typedef bip::allocator<map_value_type, Shared::segment_manager> map_value_type_allocator;
 		typedef bip::map< Shared::string, Shared::string, std::less<Shared::string>, map_value_type_allocator> sh_map;
 
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (uuid)
+		if (uuid)
 		{
 			sh_map *shm_map = segment->find<sh_map>(key.data()).first;
 
@@ -438,9 +442,9 @@ public:
 		typedef bip::allocator<map_value_type, Shared::segment_manager> map_value_type_allocator;
 		typedef bip::map< Shared::string, Shared::string, std::less<Shared::string>, map_value_type_allocator> sh_map;
 
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (uuid)
+		if (uuid)
 		{
 			sh_map *shm_map = segment->find<sh_map>(key.data()).first;
 
@@ -483,9 +487,9 @@ public:
 		typedef bip::allocator<map_value_type, Shared::segment_manager> map_value_type_allocator;
 		typedef bip::map< Shared::string, T1, std::less<Shared::string>, map_value_type_allocator> sh_map;
 
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (uuid)
+		if (uuid)
 		{
 			sh_map *shm_map = segment->find<sh_map>(key.data()).first;
 
@@ -522,11 +526,11 @@ public:
 		typedef bip::allocator<map_value_type, Shared::segment_manager> map_value_type_allocator;
 		typedef bip::map< Shared::string, T1, std::less<Shared::string>, map_value_type_allocator> sh_map;
 
-        int uuid = set_lock(key);
+		int uuid = set_lock(key);
 
-        if (set_lock(key))
+		if (set_lock(key))
 		{
-            sh_map *shm_map = segment->find<sh_map>(key.data()).first;
+			sh_map *shm_map = segment->find<sh_map>(key.data()).first;
 
 			if (shm_map)
 			{
@@ -562,9 +566,9 @@ public:
 
 	std::string str_lock;
 
-    int set_lock(std::string const & key, int time_out = 1000)
+	int set_lock(std::string const & key, int time_out = 1000)
 	{
-        int uuid = (rand() % INT_MAX) + 1;
+		int uuid = (rand() % INT_MAX) + 1;
 		int interval = 10; // msec
 
 		std::string _key = "##LOCK##:" + key;
@@ -573,43 +577,68 @@ public:
 		{
 			time_out -= interval;
 
-            int *lock = segment->find<int>(_key.data()).first;
+			int *lock = segment->find<int>(_key.data()).first;
 
 			if (lock == NULL)
 			{
 				std::cout << key << " : lock set!" << std::endl;
-                lock = segment->construct<int>(_key.data())(uuid);
-                return uuid;
+				lock = segment->construct<int>(_key.data())(uuid);
+				return uuid;
 			}
 			else
 			{
-                std::cout << key << " : lock failed trying again... | "<< lock << " - " << uuid << std::endl;
-//                boost::this_thread::sleep_for(boost::chrono::milliseconds(interval));
-                Sleep(interval);
+				std::cout << key << " : lock failed trying again... | " << lock << " - " << uuid << std::endl;
+				//                boost::this_thread::sleep_for(boost::chrono::milliseconds(interval));
+				Sleep(interval);
 			}
 		}
 
-        std::cout << key << " : lock failed!" << std::endl;
-        return 0;
+		std::cout << key << " : lock failed!" << std::endl;
+		return 0;
 	}
 
-    bool release_lock(std::string const & key, int const & uuid)
+	bool release_lock(std::string const & key, int const & uuid)
 	{
 		std::string _key = "##LOCK##:" + key;
 		bool result = false;
 
-        int *lock = segment->find<int>(_key.data()).first;
+		int *lock = segment->find<int>(_key.data()).first;
 
-        if (lock != NULL && *lock == uuid)
-		{			
-            result = segment->destroy<int>(_key.data());
+		if (lock != NULL && *lock == uuid)
+		{
+			result = segment->destroy<int>(_key.data());
 		}
 
 		return result;
+	}
+
+	void call_test_method(const reply_callback_t& callback = nullptr)
+	{
+		set_value("test_method", (int)-666);
+		m_callbacks.push(callback);
+	}
+
+	void test_receive_handler(std::string reply) 
+	{
+		reply_callback_t callback = nullptr;
+
+		{
+			if (m_callbacks.size()) {
+				callback = m_callbacks.front();
+				m_callbacks.pop();
+			}
+		}
+
+		if (callback) {
+			callback(reply);
+		}
+
 	}
 
 private:
 
 	Shared::sh_notification_map *incoming_notifications;
 	Shared::sh_notification_map *outgoing_notifications;
+
+	std::queue<reply_callback_t> m_callbacks;
 };

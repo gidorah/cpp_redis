@@ -29,14 +29,6 @@ Redis_Handler::Redis_Handler(std::string const & server_ip, Shared_Memory_Extens
 	sync_client.select(11);
 	future_client.select(11);
 
-
-	subscriber.subscribe("some_chan", [](const std::string& chan, const std::string& msg) {
-		std::cout << "MESSAGE " << chan << ": " << msg << std::endl;
-	}).commit();
-
-	//std::string _uuid = set_lock("my_lock");
-	//bool _lock = release_lock("my_lock", _uuid);
-	//std::cout << "uuid : " << _uuid << " state : " << _lock << std::endl;
 }
 
 
