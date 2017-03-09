@@ -42,7 +42,6 @@ public:
 	{
 		auto process_get_reply = [=](cpp_redis::reply& reply)
 		{
-			std::cout << "process_get_reply key : " << key << " _value : " << reply << std::endl;
 			std::string str_reply = reply.as_string();
 			T1 _value = boost::lexical_cast<T1>(str_reply);
 			shm_handler->set_value(key, _value);
@@ -57,8 +56,6 @@ public:
 	template <typename T1>
 	void set_value(std::string const & key, std::vector<T1> const & arg_vector)
 	{
-		std::cout << "set_vector : " << key << std::endl;
-
 		std::vector <std::string> multi_set_vector;
 
 		for (auto it = arg_vector.begin(); it != arg_vector.end(); it++)
@@ -82,8 +79,6 @@ public:
 	{
 		client.llen(key, [=](cpp_redis::reply& reply) {
 
-			std::cout << "llen : " << reply.as_integer() << std::endl;
-
 			if (reply.as_integer() == 0)
 			{
 				std::cerr << " Notification Error: list is empty or Key does NOT exits!" << std::endl;
@@ -93,9 +88,6 @@ public:
 			client.lrange(key, 0, reply.as_integer(), [=](cpp_redis::reply& reply) {
 
 				auto _array = reply.as_array();
-
-				std::cout << "array : " << _array << std::endl;
-
 				std::vector<T1> _vector;
 
 				for (auto it = _array.begin(); it != _array.end(); it++)
@@ -185,8 +177,6 @@ public:
 
 			std::string redis_key = chan.substr(chan.find(key)); /* client'ýn deðeri çekebilmesi için
 																 key oluþturuluyor */
-
-			std::cout << " redis_key : " << redis_key << " msg : " << msg << std::endl;
 
 			handle_subscriber_reply(redis_key, msg);
 
@@ -311,7 +301,6 @@ public:
 			std::cout << "Redis_Handler::get_type : wrong type!" << std::endl;
 		}
 
-		std::cout << _type << std::endl;
 		return _type;
 
 	}
@@ -325,7 +314,6 @@ public:
 		if (reply.is_string())
 		{
 			std::string str_reply = reply.as_string();
-			std::cout << str_reply << std::endl;
 		}
 	}
 

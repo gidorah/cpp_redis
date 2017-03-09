@@ -152,8 +152,6 @@ public:
 	template <typename T1>
 	void set_value(std::string const & key, T1 const & arg_value, bool const &disable_notification = false)
 	{
-		std::cout << key << " : " << arg_value << std::endl;
-
 		T1 *_var = segment->find_or_construct<T1>(key.c_str())(arg_value);
 		*_var = arg_value;
 
@@ -195,8 +193,6 @@ public:
 			*_var = sh_str_value;
 
 			release_lock(key, uuid);
-
-			std::cout << "\nset_string : " << key << std::endl;
 
 			if(disable_notification == false) add_data_notification(key.c_str(), typeid(std::string).name());
 		}
@@ -254,7 +250,6 @@ public:
 			for (std::vector<T1>::const_iterator it = arg_vector.begin(); it != arg_vector.end(); it++)
 			{
 				shm_vector->push_back(*it);
-				std::cout << "it : " << *it << std::endl;
 			}
 
 			release_lock(key, uuid);
@@ -431,9 +426,6 @@ public:
 
 					map_key = (*it).first;
 					map_val = (*it).second;
-
-					//std::cout << "map_key : " << map_key << " | map_val : " << map_val << std::endl;
-
 					arg_map[map_key] = map_val;
 				}
 
@@ -508,13 +500,7 @@ public:
 
 					map_key = (*it).first.c_str();
 					map_val = (*it).second.c_str();
-
-					test_count++;
-
-
-					//std::cout << "map_key : " << map_key << " | map_val : " << map_val << std::endl;
-
-					arg_map[map_key] = map_val;
+					arg_map[map_key] = map_val;					
 				}
 
 				release_lock(key, uuid);
@@ -592,9 +578,6 @@ public:
 
 					map_key = (*it).first.c_str();
 					map_val = (*it).second;
-
-					//std::cout << "map_key : " << map_key << " | map_val : " << map_val << std::endl;
-
 					arg_map[map_key] = map_val;
 				}
 
@@ -638,19 +621,19 @@ public:
 
 			if (lock == NULL)
 			{
-				std::cout << key << " : lock set!" << std::endl;
+				//std::cout << key << " : lock set!" << std::endl;
 				lock = segment->construct<int>(_key.data())(uuid);
 				return uuid;
 			}
 			else
 			{
-				std::cout << key << " : lock failed trying again... | " << lock << " - " << uuid << std::endl;
+				//std::cout << key << " : lock failed trying again... | " << lock << " - " << uuid << std::endl;
 				//                boost::this_thread::sleep_for(boost::chrono::milliseconds(interval));
 				Sleep(interval);
 			}
 		}
 
-		std::cout << key << " : lock failed!" << std::endl;
+		std::cout << key << " : Shared_Memory_Handler lock failed!" << std::endl;
 		return 0;
 	}
 

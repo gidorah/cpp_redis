@@ -46,12 +46,6 @@ Shared_Memory_Handler::Shared_Memory_Handler(std::string const & segment_name) :
 	std::string incoming_notification_key_rpc = incoming_notification_key + "_rpc";
 	std::string outgoing_notification_key_rpc = outgoing_notification_key + "_rpc";
 
-	std::cout << "incoming_notification_key_data : " << incoming_notification_key_data << std::endl;
-	std::cout << "outgoing_notification_key_data : " << outgoing_notification_key_data << std::endl;
-	std::cout << "incoming_notification_key_rpc : " << incoming_notification_key_rpc << std::endl;
-	std::cout << "outgoing_notification_key_rpc : " << outgoing_notification_key_rpc << std::endl;
-
-
 	segment_manager = segment->get_segment_manager();
 
 	Shared::void_allocator alloc_inst(segment_manager);
@@ -99,17 +93,6 @@ Shared_Memory_Handler::Shared_Memory_Handler(std::string const & segment_name) :
 		outgoing_rpc_notifications =
 			segment->construct<Shared::sh_rpc_notification_map>(outgoing_notification_key_rpc.data())(std::less<Shared::string>(), alloc_inst);
 	}
-
-
-	//std::string uuid_s = call_test_method([]() {
-	//	std::cout << "first test of method call " << std::endl;
-	//});
-
-	//std::cout << "uuid :  " << uuid_s << std::endl;
-
-	//bool result = test_receive_handler(uuid_s);
-
-	//std::cout << "result :  " << result << std::endl;
 }
 
 

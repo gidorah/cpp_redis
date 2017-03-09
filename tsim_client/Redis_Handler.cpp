@@ -62,12 +62,12 @@ std::string Redis_Handler::set_lock(std::string const & key, int time_out)
 		}
 		else
 		{
-			std::cout << "lock failed trying again..." << std::endl;
+			//std::cout << "lock failed trying again..." << std::endl;
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
 		}
 	}
 
-	std::cout << "lock failed!" << std::endl;
+	std::cout << "Redis_Handler lock failed! : " << key << std::endl;
 	return std::string("-666");
 
 

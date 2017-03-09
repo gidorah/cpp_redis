@@ -15,7 +15,7 @@ Data_Controller::Data_Controller() :
 
 	//redis_handler->subscribe("val_d", value, shm_handler);
 	//redis_handler->subscribe("val_i", value, shm_handler);
-	redis_handler->subscribe("vector");
+	//redis_handler->subscribe("vector");
 	//redis_handler->subscriber_commit();
 	//////redis_handler->set_value("val_d", 444.1);
 	//////redis_handler->set_value("val_i", 555);
@@ -42,44 +42,44 @@ Data_Controller::Data_Controller() :
 	//	test_map["key_" + std::to_string(i)] = milliseconds_since_epoch;
 	//}
 
-	if (shm_handler->master)
-	{
-		//redis_handler->subscribe("test_map_1", subscribe_type::map, shm_handler);
-		//redis_handler->subscribe("test_map_2", subscribe_type::map, shm_handler);
-		//redis_handler->subscribe("test_time", subscribe_type::map, shm_handler);
-		//Sleep(3000);
-		//redis_handler->set_value("test_time_1", test_map);
-		//redis_handler->subscriber_commit();
+	//if (shm_handler->master)
+	//{
+	//	//redis_handler->subscribe("test_map_1", subscribe_type::map, shm_handler);
+	//	//redis_handler->subscribe("test_map_2", subscribe_type::map, shm_handler);
+	//	//redis_handler->subscribe("test_time", subscribe_type::map, shm_handler);
+	//	//Sleep(3000);
+	//	//redis_handler->set_value("test_time_1", test_map);
+	//	//redis_handler->subscriber_commit();
 
-		int parameter_1 = 1000;
-		shm_handler->set_value("my_test_method.parameter_1", parameter_1, true);
+	//	int parameter_1 = 1000;
+	//	shm_handler->set_value("my_test_method.parameter_1", parameter_1, true);
 
-		int parameter_2 = 666;
-		shm_handler->set_value("my_test_method.parameter_2", parameter_2, true);
+	//	int parameter_2 = 666;
+	//	shm_handler->set_value("my_test_method.parameter_2", parameter_2, true);
 
-		auto reply_ = [&]() {
+	//	auto reply_ = [&]() {
 
-			int return_val;
-			std::cout << "first test of method call " << std::endl;
-			shm_handler->get_value("my_test_method.return_val", return_val);
-			std::cout << "return_val :  " << return_val << std::endl;
+	//		int return_val;
+	//		std::cout << "first test of method call " << std::endl;
+	//		shm_handler->get_value("my_test_method.return_val", return_val);
+	//		std::cout << "return_val :  " << return_val << std::endl;
 
-		};
+	//	};
 
-		shm_handler->push_remote_call("my_test_method", reply_);
+	//	shm_handler->push_remote_call("my_test_method", reply_);
 
-	}
-	else
-	{
-		//redis_handler->subscribe("test_time", subscribe_type::value, shm_handler);
-		//redis_handler->subscribe("test_time_1", subscribe_type::value, shm_handler);
+	//}
+	//else
+	//{
+	//	//redis_handler->subscribe("test_time", subscribe_type::value, shm_handler);
+	//	//redis_handler->subscribe("test_time_1", subscribe_type::value, shm_handler);
 
-		//redis_handler->subscribe("test_time_1", subscribe_type::map, shm_handler);
-		//Sleep(3000);
-		//redis_handler->set_value("test_time", test_map);
-		//redis_handler->set_value("test_map_1", test_map);
-		//redis_handler->set_value("test_map_2", test_map);
-	}
+	//	//redis_handler->subscribe("test_time_1", subscribe_type::map, shm_handler);
+	//	//Sleep(3000);
+	//	//redis_handler->set_value("test_time", test_map);
+	//	//redis_handler->set_value("test_map_1", test_map);
+	//	//redis_handler->set_value("test_map_2", test_map);
+	//}
 }
 
 Data_Controller::~Data_Controller()
@@ -140,8 +140,6 @@ void Data_Controller::process_data_notifications()
 	int process_count = shm_handler->get_data_notification_queue_size(); /* her iþlem aralýðýnda vector içindeki
 																	bütün elemanlar iþlenir.*/
 
-																	//std::cout << "process_count : " << process_count << std::endl;
-
 	while (process_count--)
 	{
 		//std::cout << "process_count : " << process_count + 1 << std::endl;
@@ -173,37 +171,33 @@ void Data_Controller::process_data_notifications()
 					redis_handler->subscribe(*it);
 				}
 			}
-			if (_notification._type == "##RPC##")
-			{
-
-			}
 			else if (_notification._type == typeid(bool).name())
 			{
 				bool _value;
 				shm_handler->get_value<bool>(_notification._key, _value);
 
-				std::cout << "bool value : " << _value << std::endl;
+				//std::cout << "bool value : " << _value << std::endl;
 				redis_handler->set_value(_notification._key, _value);
 			}
 			else if (_notification._type == typeid(int).name())
 			{
 				int _value;
 				shm_handler->get_value<int>(_notification._key, _value);
-				std::cout << "int value : " << _value << std::endl;
+				//std::cout << "int value : " << _value << std::endl;
 				redis_handler->set_value(_notification._key, _value);
 			}
 			else if (_notification._type == typeid(double).name())
 			{
 				double _value;
 				shm_handler->get_value<double>(_notification._key, _value);
-				std::cout << "double value : " << _value << std::endl;
+				//std::cout << "double value : " << _value << std::endl;
 				redis_handler->set_value(_notification._key, _value);
 			}
 			else if (_notification._type == typeid(std::string).name())
 			{
 				std::string _value;
 				shm_handler->get_value(_notification._key, _value);
-				std::cout << "string value : " << _value << std::endl;
+				//std::cout << "string value : " << _value << std::endl;
 				redis_handler->set_value(_notification._key, _value);
 			}
 			else if (_notification._type == typeid(std::vector<int>).name())
@@ -223,10 +217,10 @@ void Data_Controller::process_data_notifications()
 				std::vector<std::string> _value;
 				shm_handler->get_value(_notification._key, _value);
 
-				for (auto i = _value.begin(); i != _value.end(); i++)  //Insert data in the vector
-				{
-					std::cout << " val_s : " << (*i).c_str() << std::endl;
-				}
+				//for (auto i = _value.begin(); i != _value.end(); i++)  //Insert data in the vector
+				//{
+				//	std::cout << " val_s : " << (*i).c_str() << std::endl;
+				//}
 
 				redis_handler->set_value(_notification._key, _value);
 			}
@@ -254,7 +248,4 @@ void Data_Controller::process_data_notifications()
 			std::cerr << "get_value : Invalid key '" << ia.what() << "'" << std::endl;
 		}
 	}
-
-	//redis_handler->client_commit();
-
 }
