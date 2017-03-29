@@ -32,7 +32,7 @@ class Redis_Handler_Extension :
 {
 public:
 
-	Redis_Handler_Extension(std::string const & server_ip, Shared_Memory_Extension *shm);
+	Redis_Handler_Extension(std::string const & server_ip, int const & db_index, Shared_Memory_Extension *shm);
 
 	~Redis_Handler_Extension();
 

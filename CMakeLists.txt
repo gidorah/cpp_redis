@@ -176,10 +176,6 @@ IF (BUILD_EXAMPLES)
   add_subdirectory(examples)
 ENDIF(BUILD_EXAMPLES)
 
-# IF (BUILD_TSIM)
-  add_subdirectory(tsim_client) #cmake . -DBUILD_EXAMPLES=true -DLOGGING_ENABLED=1
-# ENDIF(BUILD_TSIM)
-
 ###
 # tests
 ###
@@ -189,3 +185,7 @@ IF (BUILD_TESTS)
                       GIT_REPOSITORY "https://github.com/google/googletest.git"
                       CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${PROJECT_SOURCE_DIR}/deps")
 ENDIF(BUILD_TESTS)
+
+# IF (BUILD_TSIM)
+  add_subdirectory(tsim_client) #cmake . -DBUILD_EXAMPLES=true -DLOGGING_ENABLED=1 -DBOOST_LIBRARY_DIR=D:/SETUP/boost_1_63_0_x86_msvc14/lib32-msvc-14.0 -DBOOST_INCLUDE_DIR=D:/SETUP/boost_1_63_0_x86_msvc14/
+# ENDIF(BUILD_TSIM)

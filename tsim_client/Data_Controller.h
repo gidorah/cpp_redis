@@ -12,7 +12,7 @@
 class Data_Controller
 {
 public:
-	Data_Controller();
+	Data_Controller(std::string const & server_ip, int const & db_index, std::string const & segment_name);
 	~Data_Controller();
 
 private:

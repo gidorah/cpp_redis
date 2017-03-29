@@ -1,0 +1,1 @@
+cmd='D:/SETUP/CMake/bin/cmake.exe;-DCMAKE_INSTALL_PREFIX=D:/PROJECTS/TSIM/trunk/redis_shm_client/deps;-GVisual Studio 14 2015;D:/PROJECTS/TSIM/trunk/redis_shm_client/tacopie'

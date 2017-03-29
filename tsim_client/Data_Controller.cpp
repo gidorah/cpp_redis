@@ -1,9 +1,9 @@
 #include "Data_Controller.h"
 
 
-Data_Controller::Data_Controller() :
-	shm_handler(new Shared_Memory_Extension("redis.dm")),
-	redis_handler(new Redis_Handler_Extension("10.11.41.1", shm_handler)),
+Data_Controller::Data_Controller(std::string const & server_ip, int const & db_index, std::string const & segment_name) :
+	shm_handler(new Shared_Memory_Extension(segment_name)),
+	redis_handler(new Redis_Handler_Extension(server_ip, db_index, shm_handler)),
 	heartbeat(TIMER_INTERVAL, std::bind(&Data_Controller::process_shm_changes, this)),
 	testbeat(1000, std::bind(&Data_Controller::test_print, this))
 {
@@ -26,11 +26,11 @@ Data_Controller::Data_Controller() :
 	////redis_handler->set_value("val_b", true);
 	//redis_handler->client_commit();
 
-	//for (int i = 0; i < 50000; ++i)  //Insert data in the vector
-	//{
-	//	frontCouplingForces.push_back(i);
-	//	test_map["key_" + std::to_string(i)] = milliseconds_since_epoch;
-	//}
+	for (int i = 0; i < 50; ++i)  //Insert data in the vector
+	{
+		frontCouplingForces.push_back(i);
+		test_map["key_" + std::to_string(i)] = i + 10000000;
+	}
 
 	//unsigned long milliseconds_since_epoch =
 	//	std::chrono::system_clock::now().time_since_epoch() /
@@ -48,7 +48,12 @@ Data_Controller::Data_Controller() :
 	//	//redis_handler->subscribe("test_map_2", subscribe_type::map, shm_handler);
 	//	//redis_handler->subscribe("test_time", subscribe_type::map, shm_handler);
 	//	//Sleep(3000);
-	//	//redis_handler->set_value("test_time_1", test_map);
+	std::string uuid = redis_handler->set_lock("test_time_1",100000);
+
+	std::cout << "uuid : " << uuid << std::endl;
+
+	redis_handler->set_value("test_time_1", test_map);
+	std::cout << "release_lock : " << redis_handler->release_lock("test_time_1", uuid) << std::endl;
 	//	//redis_handler->subscriber_commit();
 
 	//	int parameter_1 = 1000;
@@ -109,7 +114,7 @@ void Data_Controller::process_rpc_notifications()
 		Shared::rpc_notification_type _type = _notification._type;
 		std::string _uuid = _notification._uuid;
 
-		std::cout << "process_shm_changes" << _method_id << " | "  << _uuid << std::endl;
+		std::cout << "process_shm_changes" << _method_id << " | " << _uuid << std::endl;
 
 		if (_type == Shared::rpc_notification_type::reply)
 		{
@@ -128,10 +133,10 @@ void Data_Controller::process_rpc_notifications()
 			int return_val;
 			return_val = parameter_1 + parameter_2; // Burada çaðrýlmak istenen method ne ise o çaðrýlacak
 			shm_handler->set_value("my_test_method.return_val", return_val, true);
-			
+
 			shm_handler->add_rpc_notification(_uuid, _method_id, Shared::rpc_notification_type::reply); // Dönüþ olarak rpc_notification_type reply olarak yollanmalý!!!
 		}
-		
+
 	}
 }
 

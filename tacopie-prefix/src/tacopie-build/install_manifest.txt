@@ -1,0 +1,12 @@
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/lib/Debug/tacopie.lib
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/lib/Debug/tacopie.pdb
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/include/tacopie/error.hpp
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/include/tacopie/logger.hpp
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/include/tacopie/network/io_service.hpp
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/include/tacopie/network/self_pipe.hpp
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/include/tacopie/network/tcp_client.hpp
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/include/tacopie/network/tcp_server.hpp
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/include/tacopie/network/tcp_socket.hpp
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/include/tacopie/tacopie
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/include/tacopie/typedefs.hpp
+D:/PROJECTS/TSIM/trunk/redis_shm_client/deps/include/tacopie/utils/thread_pool.hpp

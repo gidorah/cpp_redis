@@ -15,7 +15,7 @@
 class Redis_Handler
 {
 public:
-	Redis_Handler(std::string const & server_ip, Shared_Memory_Extension *shm);
+	Redis_Handler(std::string const & server_ip, int const & db_index, Shared_Memory_Extension *shm);
 
 	~Redis_Handler();
 
@@ -36,7 +36,7 @@ public:
 		if (notification_enabled)
 			publish_notificaton(key, value);
 	}
-	
+
 	template <typename T1>
 	void get_value(std::string const & key, T1 const & value)
 	{
@@ -69,7 +69,7 @@ public:
 		}
 
 		delete_key(key);
-		sync_client.rpush(key, multi_set_vector);
+		future_client.rpush(key, multi_set_vector);
 
 		publish_notificaton(key, arg_vector);
 	}
@@ -128,7 +128,7 @@ public:
 		}
 
 		delete_key(key);
-		sync_client.hmset(key, multi_set_vector);
+		future_client.hmset(key, multi_set_vector);
 
 		publish_notificaton(key, arg_map);
 	}
@@ -168,7 +168,7 @@ public:
 	{
 		std::vector<std::string> delete_vector;
 		delete_vector.push_back(key);
-		sync_client.del(delete_vector);
+		future_client.del(delete_vector);
 	}
 
 	void subscribe(std::string const & key)
@@ -309,12 +309,8 @@ public:
 	void publish_notificaton(std::string const & key, T1 const & arg)
 	{
 		std::string _type = get_type(arg);
-		auto reply = sync_client.publish(key, _type);
+		auto reply = future_client.publish(key, _type);
 
-		if (reply.is_string())
-		{
-			std::string str_reply = reply.as_string();
-		}
 	}
 
 	std::string set_lock(std::string const & key, int time_out = 1000);
@@ -323,7 +319,7 @@ public:
 
 protected:
 	cpp_redis::redis_client client;
-	cpp_redis::sync_client sync_client;
+	//cpp_redis::sync_client sync_client;
 	cpp_redis::future_client future_client;
 	cpp_redis::redis_subscriber subscriber;
 

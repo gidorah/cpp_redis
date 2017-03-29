@@ -10,7 +10,10 @@ ENDIF (NOT WIN32)
 # includes
 ###
 include_directories(${PROJECT_SOURCE_DIR}/includes
-                    ${CPP_REDIS_INCLUDES})
+                    ${CPP_REDIS_INCLUDES}
+                    ${BOOST_INCLUDE_DIR})
+
+link_directories(${BOOST_LIBRARY_DIR})
 
 
 ###
