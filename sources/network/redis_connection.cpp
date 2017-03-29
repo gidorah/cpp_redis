@@ -24,18 +24,29 @@
 #include <cpp_redis/network/redis_connection.hpp>
 #include <cpp_redis/redis_error.hpp>
 
+#ifndef __CPP_REDIS_USE_CUSTOM_TCP_CLIENT
+#include <cpp_redis/network/tcp_client.hpp>
+#endif /* __CPP_REDIS_USE_CUSTOM_TCP_CLIENT */
+
 namespace cpp_redis {
 
 namespace network {
 
+#ifndef __CPP_REDIS_USE_CUSTOM_TCP_CLIENT
 redis_connection::redis_connection(void)
-: m_reply_callback(nullptr)
+: redis_connection(std::make_shared<tcp_client>()) {
+}
+#endif /* __CPP_REDIS_USE_CUSTOM_TCP_CLIENT */
+
+redis_connection::redis_connection(const std::shared_ptr<tcp_client_iface>& client)
+: m_client(client)
+, m_reply_callback(nullptr)
 , m_disconnection_handler(nullptr) {
   __CPP_REDIS_LOG(debug, "cpp_redis::network::redis_connection created");
 }
 
 redis_connection::~redis_connection(void) {
-  m_client.disconnect(true);
+  m_client->disconnect(true);
   __CPP_REDIS_LOG(debug, "cpp_redis::network::redis_connection destroyed");
 }
 
@@ -46,14 +57,17 @@ redis_connection::connect(const std::string& host, std::size_t port,
   try {
     __CPP_REDIS_LOG(debug, "cpp_redis::network::redis_connection attempts to connect");
 
-    //! connect client and start to read asynchronously
-    m_client.connect(host, port);
-    m_client.async_read({__CPP_REDIS_READ_SIZE, std::bind(&redis_connection::tcp_client_receive_handler, this, std::placeholders::_1)});
-    m_client.set_on_disconnection_handler(std::bind(&redis_connection::tcp_client_disconnection_handler, this));
+    //! connect client
+    m_client->connect(host, port);
+    m_client->set_on_disconnection_handler(std::bind(&redis_connection::tcp_client_disconnection_handler, this));
+
+    //! start to read asynchronously
+    tcp_client_iface::read_request request = {__CPP_REDIS_READ_SIZE, std::bind(&redis_connection::tcp_client_receive_handler, this, std::placeholders::_1)};
+    m_client->async_read(request);
 
     __CPP_REDIS_LOG(debug, "cpp_redis::network::redis_connection connected");
   }
-  catch (const tacopie::tacopie_error& e) {
+  catch (const std::exception& e) {
     __CPP_REDIS_LOG(error, std::string("cpp_redis::network::redis_connection ") + e.what());
     throw redis_error(e.what());
   }
@@ -65,13 +79,13 @@ redis_connection::connect(const std::string& host, std::size_t port,
 void
 redis_connection::disconnect(bool wait_for_removal) {
   __CPP_REDIS_LOG(debug, "cpp_redis::network::redis_connection attempts to disconnect");
-  m_client.disconnect(wait_for_removal);
+  m_client->disconnect(wait_for_removal);
   __CPP_REDIS_LOG(debug, "cpp_redis::network::redis_connection disconnected");
 }
 
 bool
 redis_connection::is_connected(void) {
-  return m_client.is_connected();
+  return m_client->is_connected();
 }
 
 std::string
@@ -104,9 +118,10 @@ redis_connection::commit(void) {
   std::string buffer = std::move(m_buffer);
 
   try {
-    m_client.async_write({std::vector<char>{buffer.begin(), buffer.end()}, nullptr});
+    tcp_client_iface::write_request request = {std::vector<char>{buffer.begin(), buffer.end()}, nullptr};
+    m_client->async_write(request);
   }
-  catch (const tacopie::tacopie_error& e) {
+  catch (const std::exception& e) {
     __CPP_REDIS_LOG(error, std::string("cpp_redis::network::redis_connection ") + e.what());
     throw redis_error(e.what());
   }
@@ -125,7 +140,7 @@ redis_connection::call_disconnection_handler(void) {
 }
 
 void
-redis_connection::tcp_client_receive_handler(const tacopie::tcp_client::read_result& result) {
+redis_connection::tcp_client_receive_handler(const tcp_client_iface::read_result& result) {
   if (!result.success) { return; }
 
   try {
@@ -151,9 +166,10 @@ redis_connection::tcp_client_receive_handler(const tacopie::tcp_client::read_res
   }
 
   try {
-    m_client.async_read({__CPP_REDIS_READ_SIZE, std::bind(&redis_connection::tcp_client_receive_handler, this, std::placeholders::_1)});
+    tcp_client_iface::read_request request = {__CPP_REDIS_READ_SIZE, std::bind(&redis_connection::tcp_client_receive_handler, this, std::placeholders::_1)};
+    m_client->async_read(request);
   }
-  catch (const tacopie::tacopie_error&) {
+  catch (const std::exception&) {
     //! Client disconnected in the meantime
   }
 }

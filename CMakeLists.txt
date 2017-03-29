@@ -25,6 +25,7 @@
 ###
 cmake_minimum_required(VERSION 2.8.7)
 set(CMAKE_MACOSX_RPATH 1)
+include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 
 
 ###
@@ -51,7 +52,7 @@ IF (WIN32)
 
   IF ("${MSVC_RUNTIME_LIBRARY_CONFIG}" STREQUAL "")
     set(MSVC_RUNTIME_LIBRARY_CONFIG "/MT")
-  ENDIF() 
+  ENDIF()
 
   foreach (flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE)
     IF ("${MSVC_RUNTIME_LIBRARY_CONFIG}" STREQUAL "/MT")
@@ -75,20 +76,15 @@ ENDIF (WIN32)
 ###
 # variables
 ###
-# gtest
-set(GTEST_INCLUDES ${PROJECT_SOURCE_DIR}/deps/src/googletest/googletest/include)
-# cpp_redis
 set(CPP_REDIS_INCLUDES ${PROJECT_SOURCE_DIR}/includes)
-# tacopie
-set(TACOPIE_FOLDER ${PROJECT_SOURCE_DIR}/tacopie)
-set(TACOPIE_INCLUDES ${TACOPIE_FOLDER}/includes)
+set(DEPS_INCLUDES ${PROJECT_SOURCE_DIR}/deps/include)
+set(DEPS_LIBRARIES ${PROJECT_SOURCE_DIR}/deps/lib)
 
 
 ###
 # includes
 ###
-include_directories(${CPP_REDIS_INCLUDES}
-                    ${TACOPIE_INCLUDES})
+include_directories(${CPP_REDIS_INCLUDES} ${DEPS_INCLUDES})
 
 
 ###
@@ -104,6 +100,10 @@ foreach(dir ${SRC_DIRS})
   # set sources
   set(SOURCES ${SOURCES} ${s_${dir}} ${h_${dir}} ${i_${dir}})
 endforeach()
+# filter tcp_client if no tacopie
+IF (USE_CUSTOM_TCP_CLIENT)
+  list(REMOVE_ITEM SRC_DIRS "source/network/tcp_client.cpp" "include/cpp_redis/network/tcp_client.hpp")
+ENDIF (USE_CUSTOM_TCP_CLIENT)
 
 
 ###
@@ -140,6 +140,11 @@ IF (LOGGING_ENABLED)
   set_target_properties(${PROJECT} PROPERTIES COMPILE_DEFINITIONS "__CPP_REDIS_LOGGING_ENABLED=${LOGGING_ENABLED}")
 ENDIF (LOGGING_ENABLED)
 
+# __CPP_REDIS_USE_CUSTOM_TCP_CLIENT
+IF (USE_CUSTOM_TCP_CLIENT)
+  set_target_properties(${PROJECT} PROPERTIES COMPILE_DEFINITIONS "__CPP_REDIS_USE_CUSTOM_TCP_CLIENT=${USE_CUSTOM_TCP_CLIENT}")
+ENDIF (USE_CUSTOM_TCP_CLIENT)
+
 
 ###
 # install
@@ -156,7 +161,12 @@ install (DIRECTORY ${CPP_REDIS_INCLUDES}/ DESTINATION include USE_SOURCE_PERMISS
 ###
 # tacopie
 ###
-add_subdirectory(tacopie)
+IF (NOT USE_CUSTOM_TCP_CLIENT)
+  ExternalProject_Add("tacopie"
+                      GIT_SUBMODULES ""
+                      CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${PROJECT_SOURCE_DIR}/deps"
+                      SOURCE_DIR "${PROJECT_SOURCE_DIR}/tacopie")
+ENDIF (NOT USE_CUSTOM_TCP_CLIENT)
 
 
 ###
@@ -175,7 +185,7 @@ ENDIF(BUILD_EXAMPLES)
 ###
 IF (BUILD_TESTS)
   add_subdirectory(tests)
-  IF (EXISTS ${PROJECT_SOURCE_DIR}/deps/src/googletest)
-    add_subdirectory(${PROJECT_SOURCE_DIR}/deps/src/googletest)
-  ENDIF ()
+  ExternalProject_Add("googletest"
+                      GIT_REPOSITORY "https://github.com/google/googletest.git"
+                      CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${PROJECT_SOURCE_DIR}/deps")
 ENDIF(BUILD_TESTS)

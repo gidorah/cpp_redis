@@ -23,13 +23,13 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
 #include <cpp_redis/builders/reply_builder.hpp>
-
-#include <tacopie/tacopie>
+#include <cpp_redis/network/tcp_client_iface.hpp>
 
 #ifndef __CPP_REDIS_READ_SIZE
 #define __CPP_REDIS_READ_SIZE 4096
@@ -41,8 +41,11 @@ namespace network {
 
 class redis_connection {
 public:
-  //! ctor & dtor
+//! ctor & dtor
+#ifndef __CPP_REDIS_USE_CUSTOM_TCP_CLIENT
   redis_connection(void);
+#endif /* __CPP_REDIS_USE_CUSTOM_TCP_CLIENT */
+  explicit redis_connection(const std::shared_ptr<tcp_client_iface>& tcp_client);
   ~redis_connection(void);
 
   //! copy ctor & assignment operator
@@ -67,7 +70,7 @@ public:
 
 private:
   //! receive & disconnection handlers
-  void tcp_client_receive_handler(const tacopie::tcp_client::read_result& result);
+  void tcp_client_receive_handler(const tcp_client_iface::read_result& result);
   void tcp_client_disconnection_handler(void);
 
   std::string build_command(const std::vector<std::string>& redis_cmd);
@@ -77,7 +80,7 @@ private:
 
 private:
   //! tcp client for redis connection
-  tacopie::tcp_client m_client;
+  std::shared_ptr<cpp_redis::network::tcp_client_iface> m_client;
 
   //! reply callback
   reply_callback_t m_reply_callback;
