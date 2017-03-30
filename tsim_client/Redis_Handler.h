@@ -8,6 +8,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
+#include "sync_client.hpp"
 #include "Shared_Memory_Extension.h"
 
 #define REDIS_PRECISION 2 /*saklanacak ondalýklý sayýlarýn virgülden sonra kaç hane ilerleyeceðini belirler */
@@ -69,7 +70,7 @@ public:
 		}
 
 		delete_key(key);
-		future_client.rpush(key, multi_set_vector);
+		sync_client.rpush(key, multi_set_vector);
 
 		publish_notificaton(key, arg_vector);
 	}
@@ -108,6 +109,7 @@ public:
 	template <typename T1, typename T2>
 	void set_value(std::string const & key, std::map<T1, T2> const & arg_map)
 	{
+
 		std::vector < std::pair<std::string, std::string>> multi_set_vector;
 
 		for (auto it = arg_map.begin(); it != arg_map.end(); it++)
@@ -128,7 +130,9 @@ public:
 		}
 
 		delete_key(key);
-		future_client.hmset(key, multi_set_vector);
+
+		cpp_redis::reply reply = sync_client.hmset(key, multi_set_vector);
+		//std::cout << "hmset : " << reply.as_string() << std::endl;
 
 		publish_notificaton(key, arg_map);
 	}
@@ -168,21 +172,25 @@ public:
 	{
 		std::vector<std::string> delete_vector;
 		delete_vector.push_back(key);
-		future_client.del(delete_vector);
+		cpp_redis::reply reply = sync_client.del(delete_vector);
+
+		//std::cout << "del : " << reply.as_integer() << std::endl;
 	}
 
 	void subscribe(std::string const & key)
 	{
-		auto func_psubscribe_reply = [=](const std::string& chan, const std::string& msg) {
+		auto func_subscribe_reply = [=](const std::string& chan, const std::string& msg) {
 
 			std::string redis_key = chan.substr(chan.find(key)); /* client'ýn deðeri çekebilmesi için
 																 key oluþturuluyor */
+
+			//std::cout << "subscribe_reply : " << key << " || " << msg << std::endl;
 
 			handle_subscriber_reply(redis_key, msg);
 
 		};
 
-		subscriber.subscribe(key, func_psubscribe_reply).commit();
+		subscriber.subscribe(sub_prefix + key, func_subscribe_reply).commit();
 	}
 
 	void handle_subscriber_reply(std::string const & key, std::string const & type)
@@ -309,8 +317,8 @@ public:
 	void publish_notificaton(std::string const & key, T1 const & arg)
 	{
 		std::string _type = get_type(arg);
-		auto reply = future_client.publish(key, _type);
-
+		cpp_redis::reply reply = sync_client.publish(sub_prefix + key, _type);
+		//std::cout << "publish : " << reply.as_string() << std::endl;
 	}
 
 	std::string set_lock(std::string const & key, int time_out = 1000);
@@ -319,10 +327,13 @@ public:
 
 protected:
 	cpp_redis::redis_client client;
-	//cpp_redis::sync_client sync_client;
+	cpp_redis::sync_client sync_client;
 	cpp_redis::future_client future_client;
 	cpp_redis::redis_subscriber subscriber;
 
 	Shared_Memory_Extension *shm_handler;
+
+	int db_index{ 0 };
+	std::string sub_prefix;
 };
 

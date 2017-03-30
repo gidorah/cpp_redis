@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 
 	std::string _segment_name = "default_segment";
 	std::string _server_ip = "10.11.41.1";
-	int _db_index = 1;
+	int _db_index = 0;
 
 	std::string config_file_name = "config.ini";
 	

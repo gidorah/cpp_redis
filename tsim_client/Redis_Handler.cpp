@@ -3,7 +3,9 @@
 
 
 Redis_Handler::Redis_Handler(std::string const & server_ip, int const & db_index, Shared_Memory_Extension *shm) :
-	shm_handler(shm)
+	shm_handler{shm},
+	db_index{db_index},
+	sub_prefix{ "#DB" + std::to_string(db_index) + "#:"}
 {
 	//cpp_redis::active_logger = std::unique_ptr<cpp_redis::logger>(new cpp_redis::logger);
 
@@ -11,9 +13,9 @@ Redis_Handler::Redis_Handler(std::string const & server_ip, int const & db_index
 		std::cout << "client disconnected (disconnection handler)" << std::endl;
 	});
 
-	//sync_client.connect(server_ip, 6379, [](cpp_redis::redis_client&) {
-	//	std::cout << "client disconnected (disconnection handler)" << std::endl;
-	//});
+	sync_client.connect(server_ip, 6379, [](cpp_redis::redis_client&) {
+		std::cout << "client disconnected (disconnection handler)" << std::endl;
+	});
 
 	future_client.connect(server_ip, 6379, [](cpp_redis::redis_client&) {
 		std::cout << "client disconnected (disconnection handler)" << std::endl;
@@ -23,13 +25,10 @@ Redis_Handler::Redis_Handler(std::string const & server_ip, int const & db_index
 		std::cout << "subscriber disconnected (disconnection handler)" << std::endl;
 	});
 
+	future_client.select(db_index);
+	sync_client.select(db_index);
 	client.select(db_index);
 	client.commit();
-
-	future_client.select(db_index);
-
-	//sync_client.select(11);
-
 }
 
 
@@ -49,14 +48,14 @@ std::string Redis_Handler::set_lock(std::string const & key, int time_out)
 	{
 		time_out -= interval;
 
-		cpp_redis::reply reply = future_client.setnx(_key, str_uuid).get();
+		cpp_redis::reply reply = sync_client.setnx(_key, str_uuid);
 
 		//std::cout << "reply : " << reply << std::endl;
 
 		if (reply.as_integer() == 1)
 		{
 			//std::cout << "lock set!" << std::endl;
-			future_client.expire(_key, 1); /* TODO: normalde hiçbir kilit expire olmamalý.
+			sync_client.expire(_key, 1); /* TODO: normalde hiçbir kilit expire olmamalý.
 										 Belki ileride bir diagnostic tool'u yazýlýrsa keyevent'ler 
 										 ile expire olan kilitler tespit edilebilir. */
 			return str_uuid;
@@ -81,16 +80,16 @@ bool Redis_Handler::release_lock(std::string const & key, std::string const & uu
 	std::vector <std::string> watchlist;
 	watchlist.push_back(_key);
 
-	future_client.watch(watchlist);
-	cpp_redis::reply reply = future_client.get(_key).get();
+	sync_client.watch(watchlist);
+	cpp_redis::reply reply = sync_client.get(_key);
 
 	if (reply.is_string())
 	{
 		if (reply.as_string() == uuid)
 		{
-			future_client.multi();
-			future_client.del(watchlist);
-			cpp_redis::reply reply = future_client.exec().get();
+			sync_client.multi();
+			sync_client.del(watchlist);
+			cpp_redis::reply reply = sync_client.exec();
 			future_client.unwatch();
 
 			if (reply.as_array().size() != 0)
@@ -100,8 +99,6 @@ bool Redis_Handler::release_lock(std::string const & key, std::string const & uu
 			}
 		}
 	}
-
-
 
 	return result;
 }

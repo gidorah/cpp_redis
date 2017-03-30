@@ -565,7 +565,7 @@ public:
 
 		int uuid = set_lock(key);
 
-		if (set_lock(key))
+		if (uuid)
 		{
 			sh_map *shm_map = segment->find<sh_map>(key.data()).first;
 
@@ -648,6 +648,9 @@ public:
 		{
 			result = segment->destroy<int>(_key.data());
 		}
+
+		//std::cout << key << " : release_lock : " << result << std::endl;
+
 
 		return result;
 	}
