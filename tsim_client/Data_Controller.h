@@ -7,7 +7,7 @@
 #include "Redis_Handler_Extension.h"
 #include "Call_Back_Timer.h"
 
-#define TIMER_INTERVAL 100
+#define TIMER_INTERVAL 5
 
 class Data_Controller
 {
@@ -33,6 +33,35 @@ private:
 	{
 		std::cout << "processed data count : " << shm_handler->test_count << std::endl;
 		shm_handler->test_count = 0;
+
+		//if (shm_handler->master == false)
+		//{
+		//	std::vector <double> frontCouplingForces;
+		//	std::map<std::string, double> test_map;
+
+		//	for (int i = 0; i < 500; ++i)  //Insert data in the vector
+		//	{
+		//		frontCouplingForces.push_back(i + 10000);
+		//		test_map["key_" + std::to_string(i)] = i + 10000000;
+		//	}
+
+		//	bool set_return;
+
+		//	set_return = redis_handler->set_value("test_map_1", test_map);
+
+		//	if (set_return == false)
+		//		std::cout << "test_map_1 set failed!!!!\n";
+
+		//	set_return = redis_handler->set_value("test_vector_1", frontCouplingForces);
+
+		//	if (set_return == false)
+		//		std::cout << "test_vector_1 set failed!!!!\n";
+
+		//	set_return = redis_handler->set_value("test_int_1", (int) 2312);
+
+		//	if (set_return == false)
+		//		std::cout << "test_int_1 set failed!!!!\n";
+		//}
 	}
 };
 

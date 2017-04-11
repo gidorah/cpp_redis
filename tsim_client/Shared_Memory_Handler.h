@@ -12,8 +12,8 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/lexical_cast.hpp>
 
-//#include <boost/chrono.hpp>
-//#include <boost/thread.hpp>
+#include <boost/chrono.hpp>
+#include <boost/thread.hpp>
 
 #include <iostream>
 #include <string>
@@ -24,6 +24,13 @@
 #include <time.h>
 #include <sys/timeb.h>
 #include <queue>
+#include <future>
+#include <atomic>
+#include <condition_variable>
+#include <functional>
+#include <mutex>
+#include <thread>
+
 
 //#include <typeindex>
 
@@ -136,14 +143,49 @@ namespace Shared {
 
 class Shared_Memory_Handler
 {
-public:
+protected:
 
-	bool master;
-	double test_count;
+	std::string str_lock{".##LOCK##"};
+
 	Shared::segment *segment;
 	Shared::segment_manager *segment_manager;
 
-	typedef std::function<void()> reply_callback_t;
+	Shared::sh_data_notification_map *incoming_data_notifications;
+	Shared::sh_data_notification_map *outgoing_data_notifications;
+
+	Shared::sh_rpc_notification_map *incoming_rpc_notifications;
+	Shared::sh_rpc_notification_map *outgoing_rpc_notifications;
+
+
+	using shmh = Shared_Memory_Handler;
+	using result_type = void();
+	using promise = std::promise<result_type>;
+	using future = std::future<result_type>;
+
+	typedef std::function<result_type> reply_callback_t;
+	using call_t = std::function<shmh&(const reply_callback_t&)>;
+
+	std::map<std::string, reply_callback_t> m_callbacks;
+	std::mutex m_callbacks_mutex;
+	std::condition_variable m_sync_condvar;
+
+public:
+
+	bool master;
+	double test_count{0};
+
+	//! Execute a command on the redis_client and tie the callback to a future
+	std::future<bool> exec_cmd()
+	{
+		auto prms = std::make_shared<std::promise<bool>>();
+
+		//f([prms](reply& reply) {
+		//	prms->set_value(reply);
+		//}).commit();
+
+		return prms->get_future();
+	}
+
 
 	Shared_Memory_Handler(std::string const & segment_name = "Redis_Shared_Memory");
 	~Shared_Memory_Handler();
@@ -602,9 +644,7 @@ public:
 
 	int get_rpc_notification_queue_size();
 
-	Shared::Rpc_Notification_Struct pop_rpc_notification();
-
-	std::string str_lock;
+	Shared::Rpc_Notification_Struct pop_rpc_notification();	
 
 	int set_lock(std::string const & key, int time_out = 1000)
 	{
@@ -628,8 +668,8 @@ public:
 			else
 			{
 				//std::cout << key << " : lock failed trying again... | " << lock << " - " << uuid << std::endl;
-				//                boost::this_thread::sleep_for(boost::chrono::milliseconds(interval));
-				Sleep(interval);
+				boost::this_thread::sleep_for(boost::chrono::milliseconds(interval));
+				//Sleep(interval);
 			}
 		}
 
@@ -672,6 +712,14 @@ public:
 		return str_uuid;
 	}
 
+	void synced_remote_call(std::string const &method_name, const reply_callback_t& callback = nullptr)
+	{
+		std::string uuid = push_remote_call(method_name, callback);
+
+		std::unique_lock<std::mutex> lock_callback(m_callbacks_mutex);
+		m_sync_condvar.wait(lock_callback, [&] { return m_callbacks.empty(); });
+	}
+
 	bool handle_remote_call_reply(std::string reply_uuid)
 	{
 		reply_callback_t callback = nullptr;
@@ -685,9 +733,11 @@ public:
 
 		if (callback) {
 			callback();
+			m_sync_condvar.notify_all();
 			return true;
 		}
 
+		m_sync_condvar.notify_all();
 		return false;
 	}
 
@@ -696,13 +746,4 @@ public:
 
 	}
 
-private:
-
-	Shared::sh_data_notification_map *incoming_data_notifications;
-	Shared::sh_data_notification_map *outgoing_data_notifications;
-
-	Shared::sh_rpc_notification_map *incoming_rpc_notifications;
-	Shared::sh_rpc_notification_map *outgoing_rpc_notifications;
-
-	std::map<std::string, reply_callback_t> m_callbacks;
 };

@@ -5,7 +5,7 @@ Data_Controller::Data_Controller(std::string const & server_ip, int const & db_i
 	shm_handler(new Shared_Memory_Extension(segment_name)),
 	redis_handler(new Redis_Handler_Extension(server_ip, db_index, shm_handler)),
 	heartbeat(TIMER_INTERVAL, std::bind(&Data_Controller::process_shm_changes, this)),
-	testbeat(5000, std::bind(&Data_Controller::test_print, this))
+	testbeat(1000, std::bind(&Data_Controller::test_print, this))
 {
 
 	std::vector <double> frontCouplingForces;
@@ -26,11 +26,11 @@ Data_Controller::Data_Controller(std::string const & server_ip, int const & db_i
 	////redis_handler->set_value("val_b", true);
 	//redis_handler->client_commit();
 
-	for (int i = 0; i < 5; ++i)  //Insert data in the vector
-	{
-		frontCouplingForces.push_back(i);
-		test_map["key_" + std::to_string(i)] = i + 10000000;
-	}
+	//for (int i = 0; i < 5; ++i)  //Insert data in the vector
+	//{
+	//	frontCouplingForces.push_back(i);
+	//	test_map["key_" + std::to_string(i)] = i + 10000000;
+	//}
 
 	//unsigned long milliseconds_since_epoch =
 	//	std::chrono::system_clock::now().time_since_epoch() /
@@ -44,37 +44,36 @@ Data_Controller::Data_Controller(std::string const & server_ip, int const & db_i
 
 	if (shm_handler->master)
 	{
-		//	//redis_handler->subscribe("test_map_1", subscribe_type::map, shm_handler);
-		//	//redis_handler->subscribe("test_map_2", subscribe_type::map, shm_handler);
-		//	//redis_handler->subscribe("test_time", subscribe_type::map, shm_handler);
-		//	//Sleep(3000);
 
-		redis_handler->subscribe("test_time_1");
+		//int parameter_1 = 1000;
+		//shm_handler->set_value("my_test_method.parameter_1", parameter_1, true);
 
-		//	//redis_handler->subscriber_commit();
+		//int parameter_2 = 666;
+		//shm_handler->set_value("my_test_method.parameter_2", parameter_2, true);
 
-		//	int parameter_1 = 1000;
-		//	shm_handler->set_value("my_test_method.parameter_1", parameter_1, true);
+		//auto reply_ = [&]() {
 
-		//	int parameter_2 = 666;
-		//	shm_handler->set_value("my_test_method.parameter_2", parameter_2, true);
+		//	int return_val;
+		//	std::cout << "first test of method call " << std::endl;
+		//	shm_handler->get_value("my_test_method.return_val", return_val);
+		//	std::cout << "return_val :  " << return_val << std::endl;
 
-		//	auto reply_ = [&]() {
+		//};
 
-		//		int return_val;
-		//		std::cout << "first test of method call " << std::endl;
-		//		shm_handler->get_value("my_test_method.return_val", return_val);
-		//		std::cout << "return_val :  " << return_val << std::endl;
+		//shm_handler->synced_remote_call("my_test_method", reply_);
 
-		//	};
+		//std::cout << "synced remote call finished " << std::endl;
 
-		//	shm_handler->push_remote_call("my_test_method", reply_);
+
+		//redis_handler->subscribe("test_map_1");
+		//redis_handler->subscribe("test_vector_1");
+		//redis_handler->subscribe("test_int_1");
 
 	}
 	else
 	{
 
-		redis_handler->set_value("test_time_1", test_map);
+		//redis_handler->set_value("test_time_1", test_map);
 		//std::string uuid = redis_handler->set_lock("test_time_1", 100000);
 
 		//std::cout << "uuid : " << uuid << std::endl;
@@ -82,13 +81,9 @@ Data_Controller::Data_Controller(std::string const & server_ip, int const & db_i
 
 		//std::cout << "release_lock : " << redis_handler->release_lock("test_time_1", uuid) << std::endl;
 
-		//	//redis_handler->subscribe("test_time", subscribe_type::value, shm_handler);
-		//	//redis_handler->subscribe("test_time_1", subscribe_type::value, shm_handler);
 
-		//	//redis_handler->subscribe("test_time_1", subscribe_type::map, shm_handler);
 		//	//Sleep(3000);
 		//	//redis_handler->set_value("test_time", test_map);
-		//	//redis_handler->set_value("test_map_1", test_map);
 		//	//redis_handler->set_value("test_map_2", test_map);
 	}
 }
@@ -125,7 +120,7 @@ void Data_Controller::process_rpc_notifications()
 		if (_type == Shared::rpc_notification_type::reply)
 		{
 			shm_handler->handle_remote_call_reply(_uuid);
-			return;
+			continue;
 		}
 
 		if (_method_id == "my_test_method" && _type == Shared::rpc_notification_type::method_call)
