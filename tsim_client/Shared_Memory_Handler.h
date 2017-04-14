@@ -159,8 +159,6 @@ protected:
 
 	using shmh = Shared_Memory_Handler;
 	using result_type = void();
-	using promise = std::promise<result_type>;
-	using future = std::future<result_type>;
 
 	typedef std::function<result_type> reply_callback_t;
 	using call_t = std::function<shmh&(const reply_callback_t&)>;
@@ -174,26 +172,13 @@ public:
 	bool master;
 	double test_count{0};
 
-	//! Execute a command on the redis_client and tie the callback to a future
-	std::future<bool> exec_cmd()
-	{
-		auto prms = std::make_shared<std::promise<bool>>();
-
-		//f([prms](reply& reply) {
-		//	prms->set_value(reply);
-		//}).commit();
-
-		return prms->get_future();
-	}
-
-
 	Shared_Memory_Handler(std::string const & segment_name = "Redis_Shared_Memory");
 	~Shared_Memory_Handler();
 
 	/*---------------------------------------------------------------------------------------------------------------*/
 	template <typename T1>
 	void set_value(std::string const & key, T1 const & arg_value, bool const &disable_notification = false)
-	{
+	{	
 		T1 *_var = segment->find_or_construct<T1>(key.c_str())(arg_value);
 		*_var = arg_value;
 
@@ -223,7 +208,6 @@ public:
 	/*---------------------------------------------------------------------------------------------------------------*/
 	void set_value(std::string const & key, std::string const & arg_str, bool const &disable_notification = false)
 	{
-
 		int uuid = set_lock(key);
 
 		if (uuid)
@@ -374,7 +358,6 @@ public:
 																					 invalid_argument exception'ı throw ediyor. Dolayısıyla try-catch ile
 																					 kullanılması gerek. Aksi takdirde yazılım çakabilir!*/
 	{
-
 		typedef bip::allocator<Shared::string, Shared::segment_manager> sh_allocator;
 		typedef bip::vector<Shared::string, sh_allocator> sh_vector;
 
@@ -739,11 +722,6 @@ public:
 
 		m_sync_condvar.notify_all();
 		return false;
-	}
-
-	void handle_remote_call(std::string call_uuid)
-	{
-
 	}
 
 };

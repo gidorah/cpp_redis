@@ -9,14 +9,6 @@ Redis_Handler::Redis_Handler(std::string const & server_ip, int const & db_index
 {
 	//cpp_redis::active_logger = std::unique_ptr<cpp_redis::logger>(new cpp_redis::logger);
 
-	client.connect(server_ip, 6379, [](cpp_redis::redis_client&) {
-		std::cout << "client disconnected (disconnection handler)" << std::endl;
-	});
-
-	sync_client.connect(server_ip, 6379, [](cpp_redis::redis_client&) {
-		std::cout << "client disconnected (disconnection handler)" << std::endl;
-	});
-
 	future_client.connect(server_ip, 6379, [](cpp_redis::redis_client&) {
 		std::cout << "client disconnected (disconnection handler)" << std::endl;
 	});
@@ -25,10 +17,33 @@ Redis_Handler::Redis_Handler(std::string const & server_ip, int const & db_index
 		std::cout << "subscriber disconnected (disconnection handler)" << std::endl;
 	});
 
-	future_client.select(db_index);
-	sync_client.select(db_index);
-	client.select(db_index);
-	client.commit();
+	future_client.select(db_index).get();
+
+	//auto func_subscribe_reply = [=](const std::string& chan, const std::string& msg) {
+
+	//	std::cout << "subscribe_reply : " << chan << " || " << msg << "\n";
+
+	//	bool result;
+	//	int _value = 100;
+	//	std::string _key = "test_int_1";
+
+	//	std::thread _thread([&] 
+	//	{
+	//		// same as client.send({ "GET", "hello" }, ...)
+	//		client.get("test_int_1", [](cpp_redis::reply& reply) {
+	//			std::cout << "get test_int_1: " << reply << std::endl;
+	//			 if (reply.is_string())
+	//				 std::cout << "get_value: " << reply.as_string() << "\n";				 
+	//		}).sync_commit();
+	//	});
+
+	//	_thread.detach();
+
+	//	//std::cout << "test_int_1 : " << _value << "\n";
+	//	std::cout << "some text after client set \n";
+	//};
+
+	//subscriber.subscribe("test_channel", func_subscribe_reply).commit();
 }
 
 
@@ -48,14 +63,14 @@ std::string Redis_Handler::set_lock(std::string const & key, int time_out)
 	{
 		time_out -= interval;
 
-		cpp_redis::reply reply = sync_client.setnx(_key, str_uuid);
+		cpp_redis::reply reply = future_client.setnx(_key, str_uuid).get();
 
 		//std::cout << "reply : " << reply << std::endl;
 
 		if (reply.as_integer() == 1)
 		{
 			//std::cout << "lock set!" << std::endl;
-			sync_client.expire(_key, 1); /* TODO: normalde hiçbir kilit expire olmamalı.
+			future_client.expire(_key, 1).get(); /* TODO: normalde hiçbir kilit expire olmamalı.
 										 Belki ileride bir diagnostic tool'u yazılırsa keyevent'ler 
 										 ile expire olan kilitler tespit edilebilir. */
 			return str_uuid;
@@ -68,6 +83,7 @@ std::string Redis_Handler::set_lock(std::string const & key, int time_out)
 	}
 
 	std::cout << "Redis_Handler lock failed! : " << key << std::endl;
+	future_client.expire(_key, 1).get(); /* Bir şekilde kilit expire olmuyorsa gelecekteki hataları engellemek için */
 	return std::string("-666");
 
 
@@ -80,17 +96,17 @@ bool Redis_Handler::release_lock(std::string const & key, std::string const & uu
 	std::vector <std::string> watchlist;
 	watchlist.push_back(_key);
 
-	sync_client.watch(watchlist);
-	cpp_redis::reply reply = sync_client.get(_key);
+	future_client.watch(watchlist).get();
+	cpp_redis::reply reply = future_client.get(_key).get();
 
 	if (reply.is_string())
 	{
 		if (reply.as_string() == uuid)
 		{
-			sync_client.multi();
-			sync_client.del(watchlist);
-			cpp_redis::reply reply = sync_client.exec();
-			future_client.unwatch();
+			future_client.multi().get();
+			future_client.del(watchlist).get();
+			cpp_redis::reply reply = future_client.exec().get();
+			future_client.unwatch().get();
 
 			if (reply.as_array().size() != 0)
 			{

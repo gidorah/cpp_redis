@@ -2,13 +2,13 @@
 
 #include <cpp_redis/cpp_redis>
 #include <sstream>
+#include <thread>
 
 #include <boost/lexical_cast.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-#include "sync_client.hpp"
 #include "Shared_Memory_Extension.h"
 
 #define REDIS_PRECISION 2 /*saklanacak ondalýklý sayýlarýn virgülden sonra kaç hane ilerleyeceðini belirler */
@@ -17,15 +17,16 @@ class Redis_Handler
 {
 
 protected:
-	cpp_redis::redis_client client;
-	cpp_redis::sync_client sync_client;
 	cpp_redis::future_client future_client;
 	cpp_redis::redis_subscriber subscriber;
 
 	Shared_Memory_Extension *shm_handler;
 
-	int db_index{ 0 };
+	int db_index{0};
 	std::string sub_prefix;
+
+	std::mutex shm_mutex;
+	int process_number{0};
 
 public:
 	Redis_Handler(std::string const & server_ip, int const & db_index, Shared_Memory_Extension *shm);
@@ -42,7 +43,7 @@ public:
 		oss_value << std::fixed << value;
 		str_value = oss_value.str();
 
-		auto reply = sync_client.set(key, str_value);
+		auto reply = future_client.set(key, str_value).get();
 
 		if (notification_enabled)
 			publish_notificaton(key, value);
@@ -53,20 +54,38 @@ public:
 	template <typename T1>
 	bool get_value(std::string const & key, T1 & value)
 	{
+		//bool _return = false;
+
 		//auto process_get_reply = [&](cpp_redis::reply& reply)
 		//{
-		//	std::string str_reply = reply.as_string();
+		//	if (reply.is_string() == true)
+		//	{
+		//		std::string str_reply = reply.as_string();
 
-		//	std::cout << "get_value : " << str_reply << "\n";
+		//		std::cout << "get_value : " << str_reply << "\n";
 
-		//	value = boost::lexical_cast<T1>(str_reply);
-
-		//	std::cout << "get_value _value : " << value << "\n";
+		//		value = boost::lexical_cast<T1>(str_reply);
+		//		_return = true;
+		//	}
+		//	else if (reply.is_integer() == true)
+		//	{
+		//		std::cout << "int_value : " << reply.as_integer() << "\n";
+		//	}
+		//	else if (reply.is_null() == true)
+		//	{
+		//		std::cout << " value is null!!" << "\n";
+		//	}
+		//	else
+		//	{
+		//		std::cerr << " Notification : Key does NOT exits!" << std::endl;
+		//	}
 		//};
 
-		//client.get(key, process_get_reply).commit();
+		//client.get(key, process_get_reply).sync_commit();
+		//std::cerr << "return : " << _return << std::endl;
+		//return _return;
 
-		auto reply = sync_client.get(key);
+		auto reply = future_client.get(key).get();
 
 		if (reply.is_string() == false)
 		{
@@ -103,7 +122,7 @@ public:
 			return false;
 
 		delete_key(key);
-		sync_client.rpush(key, multi_set_vector);
+		future_client.rpush(key, multi_set_vector).get();
 		release_lock(key, uuid);
 
 		publish_notificaton(key, arg_vector);
@@ -146,25 +165,40 @@ public:
 
 		//}).commit();
 
-		int len{0};
+		/////////////////////////////////////////////////////////////////////////////////////////////
 
-		std::string uuid = set_lock(key);
-		if (uuid == "-666")
-			return false;
+		int len{ 0 };
 
-		auto reply_llen = sync_client.llen(key);
+		//std::string uuid = set_lock(key);
+		//if (uuid == "-666")
+		//	return false;
 
-		len = reply_llen.as_integer();
+		auto reply_llen = future_client.llen(key).get();
 
-		if (len == 0)
+		if (!reply_llen.is_integer())
 		{
-			release_lock(key, uuid);
-			std::cerr << " Notification : list is empty or Key does NOT exits!" << std::endl;
+			std::cerr << " Notification Error: llen reply is not an integer!" << std::endl;
 			return false;
 		}
 
-		auto reply_lrange = sync_client.lrange(key, 0, len);
-		release_lock(key, uuid);
+		len = reply_llen.as_integer();
+		//std::cout << "len!!!! " << len << "\n";
+		if (len == 0)
+		{
+			std::cerr << " Notification : list is empty or Key does NOT exits!" << std::endl;
+			//release_lock(key, uuid);
+			return false;
+		}
+
+		auto reply_lrange = future_client.lrange(key, 0, len).get();
+
+		//release_lock(key, uuid);
+
+		if (!reply_lrange.is_array())
+		{
+			std::cerr << " Notification Error: lrange reply is not an array!" << std::endl;
+			return false;
+		}
 
 		auto _array = reply_lrange.as_array();
 
@@ -172,6 +206,11 @@ public:
 		{
 			T1 _val = boost::lexical_cast<T1>(((cpp_redis::reply)*it).as_string());
 			arg_vector.push_back(_val);
+		}
+
+		if (len != arg_vector.size() || arg_vector.size() == 0)
+		{
+			std::cerr << " Notification : vector KABOOOOMMMM!!!!!!" << std::endl;
 		}
 
 		return true;
@@ -209,7 +248,7 @@ public:
 
 		delete_key(key);
 
-		cpp_redis::reply reply = sync_client.hmset(key, multi_set_vector);
+		cpp_redis::reply reply = future_client.hmset(key, multi_set_vector).get();
 		release_lock(key, uuid);
 
 		//std::cout << "hmset : " << reply.as_string() << std::endl;
@@ -243,12 +282,18 @@ public:
 
 		//}).commit();
 
-		std::string uuid = set_lock(key);
-		if (uuid == "-666")
-			return false;
+		//std::string uuid = set_lock(key);
+		//if (uuid == "-666")
+		//	return false;
 
-		auto reply = sync_client.hgetall(key);
-		release_lock(key, uuid);
+		auto reply = future_client.hgetall(key).get();
+		//release_lock(key, uuid);
+
+		if (!reply.is_array())
+		{
+			std::cerr << " Notification Error: hgetall reply is not an array!" << std::endl;
+			return false;
+		}
 
 		auto _array = reply.as_array();
 
@@ -267,6 +312,12 @@ public:
 
 			arg_map[_key] = _val;
 		}
+
+		if (arg_map.size() == 0)
+		{
+			std::cerr << " Notification : map KABOOOOMMMM!!!!!!" << std::endl;
+		}
+
 		return true;
 	}
 	/*---------------------------------------------------------------------------------------------------------------*/
@@ -275,24 +326,25 @@ public:
 	{
 		std::vector<std::string> delete_vector;
 		delete_vector.push_back(key);
-		cpp_redis::reply reply = sync_client.del(delete_vector);
+		cpp_redis::reply reply = future_client.del(delete_vector).get();
 
 		//std::cout << "del : " << reply.as_integer() << std::endl;
 	}
 
 	void subscribe(std::string const & key)
 	{
-		auto func_subscribe_reply = [=](const std::string& chan, const std::string& msg) {
+		auto subscriber_callback = [=](const std::string& chan, const std::string& msg) {
 
 			std::string redis_key = chan.substr(chan.find(key)); /* client'ýn deðeri çekebilmesi için
 																 key oluþturuluyor */
 
-			std::cout << "subscribe_reply : " << key << " || " << msg << std::endl;
+																 //std::cout << "subscribe_reply : " << key << " || " << msg << std::endl;
 
-			handle_subscriber_reply(redis_key, msg);
+			std::thread _thread([=] {handle_subscriber_reply(redis_key, msg); });
+			_thread.detach();
 		};
 
-		subscriber.subscribe(sub_prefix + key, func_subscribe_reply).commit();
+		subscriber.subscribe(sub_prefix + key, subscriber_callback).commit();
 	}
 
 	void handle_subscriber_reply(std::string const & key, std::string const & type)
@@ -312,7 +364,15 @@ public:
 
 			if (get_value(key, _value))
 			{
-				shm_handler->set_value(key, _value);
+				std::cout << "woohoooo!!!! " << _value << "\n";
+				//shm_handler->set_value(key, _value);
+
+				std::thread _thread([=]
+				{
+					//shm_handler->set_value(key, _value);
+				});
+
+				_thread.detach();
 			}
 		}
 		else if (type == "double")
@@ -458,7 +518,7 @@ public:
 	void publish_notificaton(std::string const & key, T1 const & arg)
 	{
 		std::string _type = get_type(arg);
-		cpp_redis::reply reply = sync_client.publish(sub_prefix + key, _type);
+		cpp_redis::reply reply = future_client.publish(sub_prefix + key, _type).get();
 		//std::cout << "publish : " << reply.as_string() << std::endl;
 	}
 

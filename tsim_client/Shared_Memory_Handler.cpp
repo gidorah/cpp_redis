@@ -102,6 +102,8 @@ Shared_Memory_Handler::~Shared_Memory_Handler()
 
 void Shared_Memory_Handler::add_data_notification(std::string const & key, std::string const & type)
 {
+	//std::lock_guard<std::mutex> guard(shm_mutex);
+
 	Shared::void_allocator alloc_inst(segment_manager);
 	Shared::Sh_Data_Notification_Struct _notification(key, type, alloc_inst);
 	Shared::string  key_object(key.c_str(), alloc_inst);
@@ -112,11 +114,15 @@ void Shared_Memory_Handler::add_data_notification(std::string const & key, std::
 
 int Shared_Memory_Handler::get_data_notification_queue_size()
 {
+	//std::lock_guard<std::mutex> guard(shm_mutex);
+
 	return incoming_data_notifications->size();
 }
 
 Shared::Data_Notification_Struct Shared_Memory_Handler::pop_data_notification()
 {
+	//std::lock_guard<std::mutex> guard(shm_mutex);
+
 	Shared::Data_Notification_Struct return_struct;
 
 	if (incoming_data_notifications->begin() != incoming_data_notifications->end())
@@ -140,6 +146,8 @@ Shared::Data_Notification_Struct Shared_Memory_Handler::pop_data_notification()
 
 void Shared_Memory_Handler::add_rpc_notification(std::string const & uuid, std::string const & method_name, Shared::rpc_notification_type type)
 {
+	//std::lock_guard<std::mutex> guard(shm_mutex);
+
 	Shared::void_allocator alloc_inst(segment_manager);
 	Shared::Sh_Rpc_Notification_Struct _notification(uuid, method_name, type, alloc_inst);
 	Shared::string  key_object(uuid.c_str(), alloc_inst);
@@ -150,11 +158,15 @@ void Shared_Memory_Handler::add_rpc_notification(std::string const & uuid, std::
 
 int Shared_Memory_Handler::get_rpc_notification_queue_size()
 {
+	//std::lock_guard<std::mutex> guard(shm_mutex);
+
 	return incoming_rpc_notifications->size();
 }
 
 Shared::Rpc_Notification_Struct Shared_Memory_Handler::pop_rpc_notification()
 {
+	//std::lock_guard<std::mutex> guard(shm_mutex);
+
 	Shared::Rpc_Notification_Struct return_struct;
 
 	if (incoming_rpc_notifications->begin() != incoming_rpc_notifications->end())
