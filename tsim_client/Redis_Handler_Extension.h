@@ -30,9 +30,7 @@ namespace Redis_Extension
 class Redis_Handler_Extension :
 	public Redis_Handler
 {
-
-
-
+	
 public:
 
 	Redis_Handler_Extension(std::string const & server_ip, int const & db_index, Shared_Memory_Extension *shm);
@@ -42,6 +40,8 @@ public:
 	void set_Level_2_data_packet(Redis_Extension::Level_2_data_packet const & packet)
 	{
 		std::string alias = "Level_2_data_packet.";
+		
+		std::string uuid = Redis_Handler::set_lock("Level_2_data_packet");
 
 		Redis_Handler::set_value(alias + "svr_eoa_position", packet.svr_eoa_position, false);
 
@@ -65,7 +65,6 @@ public:
 			svr_relatedsignal_aspect.push_back((*it).svr_relatedsignal_aspect);
 		}
 
-		std::string uuid = Redis_Handler::set_lock("Level_2_data_packet");
 
 		Redis_Handler::set_value(alias + "svr_balise_name", svr_balise_name);
 		Redis_Handler::set_value(alias + "svr_balise_name", svr_balise_name);

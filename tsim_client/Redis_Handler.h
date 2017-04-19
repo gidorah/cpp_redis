@@ -28,6 +28,8 @@ protected:
 	std::mutex shm_mutex;
 	int process_number{0};
 
+	std::map<std::string, std::string> subscriber_notifications;
+
 public:
 	Redis_Handler(std::string const & server_ip, int const & db_index, Shared_Memory_Extension *shm);
 
@@ -89,7 +91,7 @@ public:
 
 		if (reply.is_string() == false)
 		{
-			std::cerr << " Notification : Key does NOT exits!" << std::endl;
+			std::cerr << key << " Notification : Key does NOT exits!" << std::endl;
 			return false;
 		}
 
@@ -169,15 +171,15 @@ public:
 
 		int len{ 0 };
 
-		//std::string uuid = set_lock(key);
-		//if (uuid == "-666")
-		//	return false;
+		std::string uuid = set_lock(key);
+		if (uuid == "-666")
+			return false;
 
 		auto reply_llen = future_client.llen(key).get();
 
 		if (!reply_llen.is_integer())
 		{
-			std::cerr << " Notification Error: llen reply is not an integer!" << std::endl;
+			std::cerr << key << " Notification Error: llen reply is not an integer!" << std::endl;
 			return false;
 		}
 
@@ -185,18 +187,18 @@ public:
 		//std::cout << "len!!!! " << len << "\n";
 		if (len == 0)
 		{
-			std::cerr << " Notification : list is empty or Key does NOT exits!" << std::endl;
-			//release_lock(key, uuid);
+			std::cerr << key << " Notification : list is empty or Key does NOT exits!" << std::endl;
+			release_lock(key, uuid);
 			return false;
 		}
 
 		auto reply_lrange = future_client.lrange(key, 0, len).get();
 
-		//release_lock(key, uuid);
+		release_lock(key, uuid);
 
 		if (!reply_lrange.is_array())
 		{
-			std::cerr << " Notification Error: lrange reply is not an array!" << std::endl;
+			std::cerr << key << " Notification Error: lrange reply is not an array!" << std::endl;
 			return false;
 		}
 
@@ -210,7 +212,7 @@ public:
 
 		if (len != arg_vector.size() || arg_vector.size() == 0)
 		{
-			std::cerr << " Notification : vector KABOOOOMMMM!!!!!!" << std::endl;
+			std::cerr << key << " Notification : vector KABOOOOMMMM!!!!!!" << std::endl;
 		}
 
 		return true;
@@ -282,16 +284,16 @@ public:
 
 		//}).commit();
 
-		//std::string uuid = set_lock(key);
-		//if (uuid == "-666")
-		//	return false;
+		std::string uuid = set_lock(key);
+		if (uuid == "-666")
+			return false;
 
 		auto reply = future_client.hgetall(key).get();
-		//release_lock(key, uuid);
+		release_lock(key, uuid);
 
 		if (!reply.is_array())
 		{
-			std::cerr << " Notification Error: hgetall reply is not an array!" << std::endl;
+			std::cerr << key <<" Notification Error: hgetall reply is not an array!" << std::endl;
 			return false;
 		}
 
@@ -299,7 +301,7 @@ public:
 
 		if (_array.size() <= 0)
 		{
-			std::cerr << " Notification Error: hash is empty or Key does NOT exits!" << std::endl;
+			std::cerr << key << " Notification Error: hash is empty or Key does NOT exits!" << std::endl;
 			return false;
 		}
 
@@ -315,7 +317,8 @@ public:
 
 		if (arg_map.size() == 0)
 		{
-			std::cerr << " Notification : map KABOOOOMMMM!!!!!!" << std::endl;
+			std::cerr << key << " Notification : map KABOOOOMMMM!!!!!!" << std::endl;
+			return false;
 		}
 
 		return true;
@@ -340,11 +343,38 @@ public:
 
 																 //std::cout << "subscribe_reply : " << key << " || " << msg << std::endl;
 
-			std::thread _thread([=] {handle_subscriber_reply(redis_key, msg); });
-			_thread.detach();
+			//std::cout << "add_subscrber_notification " << redis_key << "  " << msg << "\n";
+			add_subscrber_notification(redis_key, msg);	
+
 		};
 
 		subscriber.subscribe(sub_prefix + key, subscriber_callback).commit();
+	}
+
+	void add_subscrber_notification(std::string const & key, std::string const & type)
+	{
+		std::lock_guard<std::mutex> guard(shm_mutex);
+		subscriber_notifications[key] = type;
+	}
+
+	void process_subscriber_notifications()
+	{
+		//std::cout << "process_subscriber_notifications1\n";
+
+		std::lock_guard<std::mutex> guard(shm_mutex);
+
+		//std::cout << "process_subscriber_notifications2\n";
+
+
+
+		while (subscriber_notifications.begin() != subscriber_notifications.end())
+		{
+			auto it = subscriber_notifications.begin();
+
+			handle_subscriber_reply((*it).first, (*it).second);
+			std::cout << "process_subscriber_notifications " << (*it).first << "  " << (*it).second << "\n";
+			subscriber_notifications.erase(subscriber_notifications.begin());
+		}
 	}
 
 	void handle_subscriber_reply(std::string const & key, std::string const & type)
@@ -364,15 +394,7 @@ public:
 
 			if (get_value(key, _value))
 			{
-				std::cout << "woohoooo!!!! " << _value << "\n";
-				//shm_handler->set_value(key, _value);
-
-				std::thread _thread([=]
-				{
-					//shm_handler->set_value(key, _value);
-				});
-
-				_thread.detach();
+				shm_handler->set_value(key, _value);
 			}
 		}
 		else if (type == "double")
@@ -455,7 +477,7 @@ public:
 		}
 		else
 		{
-			std::cout << "Redis_Handler::get_type : wrong type!" << std::endl;
+			std::cout << key << " Redis_Handler::get_type : wrong type!" << std::endl;
 		}
 	}
 

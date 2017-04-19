@@ -3,7 +3,7 @@
 
 
 Shared_Memory_Handler::Shared_Memory_Handler(std::string const & segment_name) :
-	str_lock(".##LOCK##")
+	segment_name{ segment_name }
 {
 	std::string str_segment = "Redis_Shared_Memory"; /* shared memory ismi argüman olarak girebilmeli.
 													 Yoksa yazılımlar arası bir karışıklık olabilir. */
@@ -25,7 +25,7 @@ Shared_Memory_Handler::Shared_Memory_Handler(std::string const & segment_name) :
 		std::cout << "break my chains and set me free!" << std::endl;
 
 		incoming_notification_key = "master_notification";
-		outgoing_notification_key = "slave_notification";
+		outgoing_notification_key = "slave_notification";		
 
 		master = false;
 	}
@@ -93,6 +93,8 @@ Shared_Memory_Handler::Shared_Memory_Handler(std::string const & segment_name) :
 		outgoing_rpc_notifications =
 			segment->construct<Shared::sh_rpc_notification_map>(outgoing_notification_key_rpc.data())(std::less<Shared::string>(), alloc_inst);
 	}
+
+	std::cout << "shm thread id : " << std::this_thread::get_id() << "\n";
 }
 
 
@@ -102,7 +104,8 @@ Shared_Memory_Handler::~Shared_Memory_Handler()
 
 void Shared_Memory_Handler::add_data_notification(std::string const & key, std::string const & type)
 {
-	//std::lock_guard<std::mutex> guard(shm_mutex);
+	bip::named_mutex shm_mutex{ bip::open_or_create,  str_notification_lock.c_str() };
+	shm_mutex.lock();
 
 	Shared::void_allocator alloc_inst(segment_manager);
 	Shared::Sh_Data_Notification_Struct _notification(key, type, alloc_inst);
@@ -110,18 +113,26 @@ void Shared_Memory_Handler::add_data_notification(std::string const & key, std::
 	Shared::sh_data_notification_pair _pair(key_object, _notification);
 
 	outgoing_data_notifications->insert(_pair);
+
+	shm_mutex.unlock();
 }
 
 int Shared_Memory_Handler::get_data_notification_queue_size()
 {
-	//std::lock_guard<std::mutex> guard(shm_mutex);
+	bip::named_mutex shm_mutex{ bip::open_or_create, str_notification_lock.c_str() };
+	shm_mutex.lock();
 
-	return incoming_data_notifications->size();
+	int _size = incoming_data_notifications->size();
+
+	shm_mutex.unlock();
+
+	return _size;
 }
 
 Shared::Data_Notification_Struct Shared_Memory_Handler::pop_data_notification()
 {
-	//std::lock_guard<std::mutex> guard(shm_mutex);
+	bip::named_mutex shm_mutex{ bip::open_or_create, str_notification_lock.c_str() };
+	shm_mutex.lock();
 
 	Shared::Data_Notification_Struct return_struct;
 
@@ -141,12 +152,15 @@ Shared::Data_Notification_Struct Shared_Memory_Handler::pop_data_notification()
 		std::cerr << " incoming_data_notifications vector is empty!" << std::endl;
 	}
 
+	shm_mutex.unlock();
+
 	return return_struct;
 }
 
 void Shared_Memory_Handler::add_rpc_notification(std::string const & uuid, std::string const & method_name, Shared::rpc_notification_type type)
 {
-	//std::lock_guard<std::mutex> guard(shm_mutex);
+	bip::named_mutex shm_mutex{ bip::open_or_create,  str_notification_lock.c_str() };
+	shm_mutex.lock();
 
 	Shared::void_allocator alloc_inst(segment_manager);
 	Shared::Sh_Rpc_Notification_Struct _notification(uuid, method_name, type, alloc_inst);
@@ -154,18 +168,26 @@ void Shared_Memory_Handler::add_rpc_notification(std::string const & uuid, std::
 	Shared::sh_rpc_notification_pair _pair(key_object, _notification);
 
 	outgoing_rpc_notifications->insert(_pair);
+
+	shm_mutex.unlock();
 }
 
 int Shared_Memory_Handler::get_rpc_notification_queue_size()
 {
-	//std::lock_guard<std::mutex> guard(shm_mutex);
+	bip::named_mutex shm_mutex{ bip::open_or_create,  str_notification_lock.c_str() };
+	shm_mutex.lock();
 
-	return incoming_rpc_notifications->size();
+	int _size = incoming_rpc_notifications->size();
+
+	shm_mutex.unlock();
+
+	return _size;
 }
 
 Shared::Rpc_Notification_Struct Shared_Memory_Handler::pop_rpc_notification()
 {
-	//std::lock_guard<std::mutex> guard(shm_mutex);
+	bip::named_mutex shm_mutex{ bip::open_or_create,  str_notification_lock.c_str() };
+	shm_mutex.lock();
 
 	Shared::Rpc_Notification_Struct return_struct;
 
@@ -183,6 +205,8 @@ Shared::Rpc_Notification_Struct Shared_Memory_Handler::pop_rpc_notification()
 	{
 		std::cerr << " incoming_rpc_notifications vector is empty!" << std::endl;
 	}
+
+	shm_mutex.unlock();
 
 	return return_struct;
 }

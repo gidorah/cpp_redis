@@ -3,9 +3,9 @@
 
 
 Redis_Handler::Redis_Handler(std::string const & server_ip, int const & db_index, Shared_Memory_Extension *shm) :
-	shm_handler{shm},
-	db_index{db_index},
-	sub_prefix{ "#DB" + std::to_string(db_index) + "#:"}
+	shm_handler{ shm },
+	db_index{ db_index },
+	sub_prefix{ "#DB" + std::to_string(db_index) + "#:" }
 {
 	//cpp_redis::active_logger = std::unique_ptr<cpp_redis::logger>(new cpp_redis::logger);
 
@@ -67,11 +67,11 @@ std::string Redis_Handler::set_lock(std::string const & key, int time_out)
 
 		//std::cout << "reply : " << reply << std::endl;
 
-		if (reply.as_integer() == 1)
+		if (reply.is_integer() && reply.as_integer() == 1)
 		{
 			//std::cout << "lock set!" << std::endl;
 			future_client.expire(_key, 1).get(); /* TODO: normalde hiçbir kilit expire olmamalý.
-										 Belki ileride bir diagnostic tool'u yazýlýrsa keyevent'ler 
+										 Belki ileride bir diagnostic tool'u yazýlýrsa keyevent'ler
 										 ile expire olan kilitler tespit edilebilir. */
 			return str_uuid;
 		}
@@ -108,10 +108,22 @@ bool Redis_Handler::release_lock(std::string const & key, std::string const & uu
 			cpp_redis::reply reply = future_client.exec().get();
 			future_client.unwatch().get();
 
-			if (reply.as_array().size() != 0)
+			if (reply.is_array() && reply.as_array().size() != 0)
 			{
 				auto it = reply.as_array().begin();
-				result = (*it).as_integer();
+				if ((*it).is_integer())
+				{
+					result = (*it).as_integer();
+				}
+				else
+				{
+					std::cerr << " release_lock : exec array element is NOT an integer!" << std::endl;
+					return false;
+				}
+			}
+			else
+			{
+				std::cerr << " release_lock : exec reply is NOT an integer!" << std::endl;
 			}
 		}
 	}
