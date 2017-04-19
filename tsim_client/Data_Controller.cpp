@@ -5,7 +5,7 @@ Data_Controller::Data_Controller(std::string const & server_ip, int const & db_i
 	shm_handler(new Shared_Memory_Extension(segment_name)),
 	redis_handler(new Redis_Handler_Extension(server_ip, db_index, shm_handler)),
 	heartbeat(TIMER_INTERVAL, std::bind(&Data_Controller::process_shm_changes, this)),
-	testbeat(5000, std::bind(&Data_Controller::test_print, this))
+	testbeat(1000, std::bind(&Data_Controller::test_print, this))
 {
 
 	//std::vector <double> frontCouplingForces;
@@ -71,9 +71,9 @@ Data_Controller::Data_Controller(std::string const & server_ip, int const & db_i
 		//redis_handler->subscribe("test_int_2");
 		//redis_handler->subscribe("test_int_3");
 
-		//for (int i = 0; i < 100; ++i)  //Insert data in the vector
+		//for (int i = 0; i < 500; ++i)  //Insert data in the vector
 		//{
-		//	//redis_handler->subscribe("test_int_" + std::to_string(i));
+		//	redis_handler->subscribe("test_int_" + std::to_string(i));
 		//	redis_handler->subscribe("test_vector_" + std::to_string(i));
 		//	redis_handler->subscribe("test_map_" + std::to_string(i));
 		//}
@@ -81,6 +81,25 @@ Data_Controller::Data_Controller(std::string const & server_ip, int const & db_i
 	}
 	else
 	{
+
+		//std::vector <double> frontCouplingForces;
+		//std::map<std::string, double> test_map;
+
+		//for (int i = 0; i < 500; ++i)  //Insert data in the vector
+		//{
+		//	double _time = std::chrono::system_clock::now().time_since_epoch().count();
+		//	std::chrono::milliseconds(1);
+
+		//	frontCouplingForces.push_back(_time);
+		//	test_map["key_" + std::to_string(i)] = _time;
+		//	redis_handler->set_value("test_int_" + std::to_string(i), (int)_time);
+		//}
+
+		//for (int i = 0; i < 5; ++i)  //Insert data in the vector
+		//{
+		//	redis_handler->set_value("test_vector_" + std::to_string(i), frontCouplingForces);
+		//	redis_handler->set_value("test_map_" + std::to_string(i), test_map);
+		//}
 
 		//redis_handler->set_value("test_time_1", test_map);
 		//std::string uuid = redis_handler->set_lock("test_time_1", 100000);
@@ -119,6 +138,7 @@ Data_Controller::~Data_Controller()
 
 void Data_Controller::process_shm_changes()
 {
+	process_redis_notifications();
 	process_data_notifications();
 	process_rpc_notifications();
 }
@@ -130,7 +150,6 @@ void Data_Controller::process_rpc_notifications()
 
 	while (process_count--)
 	{
-		std::cout << "process_count : " << process_count + 1 << std::endl;
 
 
 		Shared::Rpc_Notification_Struct _notification;
@@ -170,6 +189,7 @@ void Data_Controller::process_data_notifications()
 {
 	int process_count = shm_handler->get_data_notification_queue_size(); /* her iþlem aralýðýnda vector içindeki
 																	bütün elemanlar iþlenir.*/
+
 	while (process_count-- )
 	{
 		//std::cout << "process_count : " << process_count + 1 << std::endl;
@@ -214,11 +234,13 @@ void Data_Controller::process_data_notifications()
 				int _value;
 				shm_handler->get_value<int>(_notification._key, _value);
 				//std::cout << "int value : " << _value << std::endl;
+
 				redis_handler->set_value(_notification._key, _value);
 			}
 			else if (_notification._type == typeid(double).name())
 			{
 				double _value;
+
 				shm_handler->get_value<double>(_notification._key, _value);
 				//std::cout << "double value : " << _value << std::endl;
 				redis_handler->set_value(_notification._key, _value);
@@ -279,3 +301,9 @@ void Data_Controller::process_data_notifications()
 		}
 	}
 }
+
+void Data_Controller::process_redis_notifications()
+{
+	redis_handler->process_subscriber_notifications();
+}
+
